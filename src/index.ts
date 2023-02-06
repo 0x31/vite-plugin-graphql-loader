@@ -29,7 +29,7 @@ export const vitePluginGraphqlLoader = () => {
 
     return {
         name: "graphql-loader",
-        enforce: "pre",
+        enforce: "pre" as const,
 
         transform(source: string, id: string) {
             if (!graphqlRegex.test(id)) {
