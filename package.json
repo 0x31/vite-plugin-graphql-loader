@@ -1,6 +1,6 @@
 {
     "name": "vite-plugin-graphql-loader",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "description": "A Vite plugin for loading GraphQL files.",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
