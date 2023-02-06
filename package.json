@@ -11,8 +11,8 @@
     "scripts": {
         "test": "ts-node  __test__/index.ts",
         "build": "rm -rf dist &&  tsc",
-        "ver": "npm version patch",
-        "pub": "npm run build && npm run ver && npm publish"
+        "package:bump": "yarn version patch",
+        "package:publish": "yarn build && yarn package:bump && yarn publish"
     },
     "repository": {
         "type": "git",
@@ -39,6 +39,7 @@
         "@types/node": "^16",
         "glob": "^8.1.0",
         "ts-node": "^10.9.1",
-        "typescript": "^4.9.5"
+        "typescript": "^4.9.5",
+        "vite": "^4.1.1"
     }
 }
