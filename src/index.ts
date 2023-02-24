@@ -39,7 +39,7 @@ export const vitePluginGraphqlLoader = () => {
                 ${source}
             `;
             const headerCode = `
-var doc = ${JSON.stringify(documentNode)};
+const doc = ${JSON.stringify(documentNode)};
 doc.loc.source = ${JSON.stringify(documentNode.loc.source)};
           `;
 
@@ -64,7 +64,7 @@ doc.loc.source = ${JSON.stringify(documentNode.loc.source)};
 
             if (operationCount < 1) {
                 outputCode += `
-              module.exports = doc;
+              export default doc;
             `;
             } else {
                 outputCode += ONE_QUERY;
@@ -86,7 +86,7 @@ doc.loc.source = ${JSON.stringify(documentNode.loc.source)};
 
                         const opName = op.name.value;
                         outputCode += `
-module.exports["${opName}"] = oneQuery(doc, "${opName}");
+export const ${opName} = oneQuery(doc, "${opName}");
                 `;
                     }
                 }
