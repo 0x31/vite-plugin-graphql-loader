@@ -1,6 +1,6 @@
 {
     "name": "vite-plugin-graphql-loader",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "description": "A Vite plugin for loading GraphQL files.",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
@@ -11,7 +11,7 @@
     "scripts": {
         "test": "ts-node  __test__/index.ts",
         "build": "rm -rf dist &&  tsc",
-        "package:bump": "yarn version patch",
+        "package:bump": "yarn version --patch",
         "package:publish": "yarn build && yarn package:bump && yarn publish"
     },
     "repository": {
