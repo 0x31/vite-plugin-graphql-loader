@@ -30,3 +30,40 @@ export default defineConfig({
     plugins: [graphqlLoader()],
 });
 ```
+
+Now you can import queries from `.gql` or `.graphql` files.
+
+`example.graphql`:
+
+```graphql
+fragment ExampleFragment on example {
+    id
+    name
+}
+
+query ExampleQuery {
+    example {
+        ...ExampleFragment
+    }
+}
+```
+
+`example.js`:
+
+```javascript
+import ExampleQuery, { ExampleFragment } from "./example.graphql";
+```
+
+If you are using TypeScript, you will have to declare `.gql` or `.graphql` files:
+
+`graphql.d.ts`:
+
+```typescript
+declare module "*.gql";
+
+// Or if you aren't using fragments:
+// declare module "*.gql" {
+//     const Query: import("graphql").DocumentNode;
+//     export default Query;
+// }
+```
