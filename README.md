@@ -6,6 +6,8 @@
 
 A Vite plugin for loading GraphQL .gql and .graphql files, based on [graphql-tag/loader](https://github.com/apollographql/graphql-tag)
 
+If you are using TypeScript, I recommend using GraphQL Codegen and [vite-plugin-graphql-codegen](https://www.npmjs.com/package/vite-plugin-graphql-codegen) instead to generate TypesScript interfaces for your queries and fragments.
+
 ## Install
 
 ```bash
@@ -60,6 +62,7 @@ If you are using TypeScript, you will have to declare `.gql` or `.graphql` files
 
 ```typescript
 declare module "*.gql";
+declare module "*.graphql";
 
 // Or if you aren't using fragments:
 // declare module "*.gql" {
@@ -67,3 +70,7 @@ declare module "*.gql";
 //     export default Query;
 // }
 ```
+
+## Changelog
+
+**_v3.0.0_**: Moved from CJS to ESM, inline with Vite 5.0's CJS deprecation. If you are using CommonJS, continue using v2.0 of this package.

@@ -1,25 +1,21 @@
 {
     "compilerOptions": {
-        "module": "CommonJS",
-        "target": "es2018",
+        "module": "NodeNext",
+        "target": "es2020",
         "removeComments": true,
         "declarationMap": true,
         "declaration": true,
         "sourceMap": true,
-        "moduleResolution": "node",
+        "moduleResolution": "NodeNext",
         "noImplicitAny": false,
         "experimentalDecorators": true,
-        "esModuleInterop": true,
-        "allowSyntheticDefaultImports": true,
         "allowJs": true,
         "outDir": "dist",
-        "resolveJsonModule": true,
-        "lib": ["es2018", "dom"]
     },
     "ts-node": {
         "compilerOptions": {
-            "module": "commonjs"
-        }
+            "module": "commonjs",
+        },
     },
-    "exclude": ["node_modules", "tests", "vitest.config.ts"]
+    "exclude": ["node_modules", "tests", "vitest.config.ts"],
 }

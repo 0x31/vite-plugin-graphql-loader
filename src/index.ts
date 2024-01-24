@@ -1,6 +1,9 @@
-import os from "os";
-import gql from "graphql-tag";
-import { ONE_QUERY, UNIQUE } from "./snippets";
+import { EOL } from "os";
+import { gql } from "graphql-tag";
+import { ONE_QUERY, UNIQUE } from "./snippets.js";
+
+declare module "*.graphql";
+declare module "*.gql";
 
 // Takes `source` (the source GraphQL query string)
 // and `doc` (the parsed GraphQL document) and tacks on
@@ -15,7 +18,7 @@ const expandImports = (source: string) => {
             const [_, importFile] = result;
             const parseDocument = `(await import(${importFile})).default`;
             const appendDefinition = `doc.definitions = doc.definitions.concat(unique(${parseDocument}.definitions));`;
-            outputCode += appendDefinition + os.EOL;
+            outputCode += appendDefinition + EOL;
         }
         return line.length > 0 && line[0] !== "#";
     });
@@ -59,7 +62,7 @@ doc.loc.source = ${JSON.stringify(documentNode.loc.source)};
 
                     return accum;
                 },
-                0
+                0,
             );
 
             if (operationCount < 1) {
@@ -77,7 +80,7 @@ doc.loc.source = ${JSON.stringify(documentNode.loc.source)};
                         if (!op.name) {
                             if (operationCount > 1) {
                                 throw new Error(
-                                    "Query/mutation names are required for a document with multiple definitions"
+                                    "Query/mutation names are required for a document with multiple definitions",
                                 );
                             } else {
                                 continue;
@@ -94,12 +97,7 @@ export const ${opName} = oneQuery(doc, "${opName}");
 
             const importOutputCode = expandImports(source);
             const allCode =
-                headerCode +
-                os.EOL +
-                importOutputCode +
-                os.EOL +
-                outputCode +
-                os.EOL;
+                headerCode + EOL + importOutputCode + EOL + outputCode + EOL;
 
             return allCode;
         },
