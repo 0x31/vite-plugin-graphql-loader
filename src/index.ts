@@ -16,9 +16,14 @@ const expandImports = (source: string) => {
         const result = line.match(/^#\s?import (.+)$/);
         if (result) {
             const [_, importFile] = result;
-            const parseDocument = `(await import(${importFile})).default`;
-            const appendDefinition = `doc.definitions = doc.definitions.concat(unique(${parseDocument}.definitions));`;
-            outputCode += appendDefinition + EOL;
+
+            // Generate a unique identifier for this import.
+            const UUID =
+                "Import_" + Math.random().toString(36).substring(2, 15);
+            // Add the import statement and the code to append the definitions.
+            const importStatement = `import ${UUID} from ${importFile};`;
+            const appendDefinition = `doc.definitions = doc.definitions.concat(unique(${UUID}.definitions));`;
+            outputCode += importStatement + EOL + appendDefinition + EOL;
         }
         return line.length > 0 && line[0] !== "#";
     });
