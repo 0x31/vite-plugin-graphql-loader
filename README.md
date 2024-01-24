@@ -91,15 +91,19 @@ And then import fragments and queries like so in order to type them as `Document
 
 ```typescript
 import Document, { _queries, _fragments } from "./example.graphql";
+console.log(Document); // Has type `DocumentNode`
+console.log(_queries.ExampleQuery); // Has type `DocumentNode`
+console.log(_fragments.ExampleFragment); // Has type `FragmentDefinitionNode`
 ```
 
 ## Changelog
 
 **_v3.0.1_**:
 
--   Switched `await import` statements to top-level `import` statements (fixes #5 - `Top-level await is not available` error)
--   Added `_queries` and `_fragments` for improved module declaration.
+-   Switched `await import` statements to top-level `import` statements (fixes #5 - `Top-level await is not available` error).
+-   Added `_queries` and `_fragments` for improved module declaration types.
+-   Updated snippets to be defined in TypeScript and then stringified.
 
 **_v3.0.0_**:
 
--   Moved from CJS to ESM, inline with Vite 5.0's CJS deprecation. If you are using CommonJS, continue using v2.0 of this package.
+-   [Moved from CJS to ESM](https://github.com/noiach/vite-plugin-graphql-loader/commit/0e0b37cfcb0ecbdf28e985aeca3454137b4b73e3), inline with Vite 5.0's CJS deprecation. If you are using CommonJS, continue using v2.0 of this package. If you have `"type": "module"`, in your `package.json` then it should work as expected.
