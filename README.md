@@ -95,4 +95,11 @@ import Document, { _queries, _fragments } from "./example.graphql";
 
 ## Changelog
 
-**_v3.0.0_**: Moved from CJS to ESM, inline with Vite 5.0's CJS deprecation. If you are using CommonJS, continue using v2.0 of this package.
+**_v3.0.1_**:
+
+-   Switched `await import` statements to top-level `import` statements (fixes #5 - `Top-level await is not available` error)
+-   Added `_queries` and `_fragments` for improved module declaration.
+
+**_v3.0.0_**:
+
+-   Moved from CJS to ESM, inline with Vite 5.0's CJS deprecation. If you are using CommonJS, continue using v2.0 of this package.
