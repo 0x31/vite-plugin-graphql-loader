@@ -1,0 +1,13 @@
+#import "./test1.gql"
+
+query TestQuery {
+    test(where: { name: { _eq: "test" } }) {
+        ...TestFragment
+    }
+}
+
+query TestQuery2 {
+    test(where: { name: { _eq: "test" } }) {
+        ...TestFragment
+    }
+}

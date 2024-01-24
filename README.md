@@ -6,7 +6,7 @@
 
 A Vite plugin for loading GraphQL .gql and .graphql files, based on [graphql-tag/loader](https://github.com/apollographql/graphql-tag)
 
-If you are using TypeScript, I recommend using GraphQL Codegen and [vite-plugin-graphql-codegen](https://www.npmjs.com/package/vite-plugin-graphql-codegen) instead to generate TypesScript interfaces for your queries and fragments.
+This package _doesn't_ generate TypeScript definitions from the queries and fragments - see [vite-plugin-graphql-codegen](https://www.npmjs.com/package/vite-plugin-graphql-codegen) if you require this.
 
 ## Install
 
@@ -56,19 +56,41 @@ query ExampleQuery {
 import ExampleQuery, { ExampleFragment } from "./example.graphql";
 ```
 
-If you are using TypeScript, you will have to declare `.gql` or `.graphql` files:
+If you have multiple queries in the same file, import them like this:
 
-`graphql.d.ts`:
+```javascript
+import { FirstQuery, SecondQuery } from "./example.graphql";
+```
+
+## TypeScript
+
+If you are using TypeScript, you will have to declare `.gql` or `.graphql` files.
+
+Create `graphql.d.ts` anywhere in your source directory and
 
 ```typescript
 declare module "*.gql";
 declare module "*.graphql";
+```
 
-// Or if you aren't using fragments:
-// declare module "*.gql" {
-//     const Query: import("graphql").DocumentNode;
-//     export default Query;
-// }
+**_Alternatively_**, change it to this (replacing .gql with .graphql depending on what you use):
+
+```typescript
+declare module "*.gql" {
+    const Query: import("graphql").DocumentNode;
+    export default Query;
+    export const _queries: Record<string, import("graphql").DocumentNode>;
+    export const _fragments: Record<
+        string,
+        import("graphql").FragmentDefinitionNode
+    >;
+}
+```
+
+And then import fragments and queries like so in order to type them as `DocumentNode` and `FragmentDefinitionNode` objects.
+
+```typescript
+import Document, { _queries, _fragments } from "./example.graphql";
 ```
 
 ## Changelog

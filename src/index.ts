@@ -1,34 +1,36 @@
 import { EOL } from "os";
 import { gql } from "graphql-tag";
-import { ONE_QUERY, UNIQUE } from "./snippets.js";
+import {
+    ONE_QUERY_FUNCTION_TEMPLATE,
+    UNIQUE_FUNCTION_TEMPLATE,
+} from "./snippets.js";
 
-declare module "*.graphql";
-declare module "*.gql";
-
-// Takes `source` (the source GraphQL query string)
-// and `doc` (the parsed GraphQL document) and tacks on
-// the imported definitions.
+// Resolves GraphQL #import statements into ESM import statements.
 const expandImports = (source: string) => {
     const lines = source.split(/\r\n|\r|\n/);
-    let outputCode = UNIQUE;
+    let outputCode: string;
 
     lines.some((line: string) => {
         const result = line.match(/^#\s?import (.+)$/);
         if (result) {
             const [_, importFile] = result;
 
-            // Generate a unique identifier for this import.
-            const UUID =
-                "Import_" + Math.random().toString(36).substring(2, 15);
+            const importName =
+                "Import_" + importFile.replace(/[^a-z0-9]/gi, "_");
             // Add the import statement and the code to append the definitions.
-            const importStatement = `import ${UUID} from ${importFile};`;
-            const appendDefinition = `doc.definitions = doc.definitions.concat(unique(${UUID}.definitions));`;
-            outputCode += importStatement + EOL + appendDefinition + EOL;
+            const importStatement = `import ${importName} from ${importFile};`;
+            const appendDefinition = `doc.definitions = doc.definitions.concat(unique(${importName}.definitions));`;
+            outputCode =
+                (outputCode ?? UNIQUE_FUNCTION_TEMPLATE) +
+                importStatement +
+                EOL +
+                appendDefinition +
+                EOL;
         }
         return line.length > 0 && line[0] !== "#";
     });
 
-    return outputCode;
+    return outputCode ?? "";
 };
 
 /** Vite GraphQL Loader. */
@@ -43,6 +45,7 @@ export const vitePluginGraphqlLoader = () => {
             if (!graphqlRegex.test(id)) {
                 return;
             }
+
             const documentNode = gql`
                 ${source}
             `;
@@ -56,26 +59,19 @@ doc.loc.source = ${JSON.stringify(documentNode.loc.source)};
             // Allow multiple query/mutation definitions in a file. This parses out dependencies
             // at compile time, and then uses those at load time to create minimal query documents
             // We cannot do the latter at compile time due to how the #import code works.
-            const operationCount = documentNode.definitions.reduce(
-                (accum, op) => {
-                    if (
-                        op.kind === "OperationDefinition" ||
-                        op.kind === "FragmentDefinition"
-                    ) {
-                        return accum + 1;
-                    }
-
-                    return accum;
-                },
-                0,
-            );
+            const operationCount = documentNode.definitions.filter(
+                (op) =>
+                    (op.kind === "OperationDefinition" ||
+                        op.kind === "FragmentDefinition") &&
+                    op.name,
+            ).length;
 
             if (operationCount < 1) {
                 outputCode += `
-              export default doc;
+export default doc;
             `;
             } else {
-                outputCode += ONE_QUERY;
+                outputCode += ONE_QUERY_FUNCTION_TEMPLATE;
 
                 for (const op of documentNode.definitions) {
                     if (
@@ -94,8 +90,15 @@ doc.loc.source = ${JSON.stringify(documentNode.loc.source)};
 
                         const opName = op.name.value;
                         outputCode += `
-export const ${opName} = oneQuery(doc, "${opName}");
-                `;
+export const ${opName} = oneQuery(doc, "${opName}");`;
+
+                        if (op.kind === "OperationDefinition") {
+                            outputCode += `
+_queries["${opName}"] = ${opName};`;
+                        } else {
+                            outputCode += `
+_fragments["${opName}"] = ${opName};`;
+                        }
                     }
                 }
             }
