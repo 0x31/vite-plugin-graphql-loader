@@ -13,12 +13,12 @@
         "test": "vitest",
         "build": "rimraf ./dist && tsc",
         "package:bump": "yarn version --patch",
-        "package:publish": "yarn build && yarn package:bump && yarn publish",
-        "lint": "yarn prettier -w src tests/**/*.ts && yarn eslint --fix"
+        "package:publish": "bun run build && bun run package:bump && npm publish",
+        "lint": "prettier -w src tests/**/*.ts && eslint --fix"
     },
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/noiach/vite-plugin-graphql-loader.git"
+        "url": "git+https://github.com/0x31/vite-plugin-graphql-loader.git"
     },
     "keywords": [
         "vite",
@@ -26,12 +26,12 @@
         "graphql",
         "graphql-tag"
     ],
-    "author": "noiach",
+    "author": "0x31",
     "license": "ISC",
     "bugs": {
-        "url": "https://github.com/noiach/vite-plugin-graphql-loader/issues"
+        "url": "https://github.com/0x31/vite-plugin-graphql-loader/issues"
     },
-    "homepage": "https://github.com/noiach/vite-plugin-graphql-loader#readme",
+    "homepage": "https://github.com/0x31/vite-plugin-graphql-loader#readme",
     "dependencies": {
         "graphql": "^16.8.1",
         "graphql-tag": "^2.12.6",

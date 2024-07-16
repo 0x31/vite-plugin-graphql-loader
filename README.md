@@ -1,6 +1,6 @@
 # vite-plugin-graphql-loader
 
-[![NPM](https://nodei.co/npm/vite-plugin-graphql-loader.png?downloads=true&downloadRank=true&stars=true)](https://nodei.co/npm/vite-plugin-graphql-loader/)
+[![NPM](https://nodei.co/npm/vite-plugin-graphql-loader.png?downloads=true&downloadRank=true&stars=true)](https://www.npmjs.com/package/vite-plugin-graphql-loader/)
 
 [![npm version](https://img.shields.io/npm/v/bun-graphql-loader.svg?logoColor=fff&style=for-the-badge)](https://www.npmjs.com/package/bun-graphql-loader)
 ![Vite Badge](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=fff&style=for-the-badge)
@@ -116,4 +116,4 @@ console.log(_fragments.ExampleFragment); // Has type `FragmentDefinitionNode`
 
 **_v3.0.0_**:
 
--   [Moved from CJS to ESM](https://github.com/noiach/vite-plugin-graphql-loader/commit/0e0b37cfcb0ecbdf28e985aeca3454137b4b73e3), inline with Vite 5.0's CJS deprecation. If you are using CommonJS, continue using v2.0 of this package. If you have `"type": "module"`, in your `package.json` then it should work as expected.
+-   [Moved from CJS to ESM](https://github.com/0x31/vite-plugin-graphql-loader/commit/0e0b37cfcb0ecbdf28e985aeca3454137b4b73e3), inline with Vite 5.0's CJS deprecation. If you are using CommonJS, continue using v2.0 of this package. If you have `"type": "module"`, in your `package.json` then it should work as expected.
