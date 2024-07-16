@@ -1,6 +1,6 @@
 import { EOL } from "os";
 import { gql } from "graphql-tag";
-import MagicString, { SourceMap } from "magic-string";
+import MagicString, { SourceMap, SourceMapOptions } from "magic-string";
 import {
     vitePluginGraphqlLoaderUniqueChecker,
     vitePluginGraphqlLoaderExtractQuery,
@@ -52,6 +52,7 @@ const expandImports = (
 /** Vite GraphQL Loader. */
 export const vitePluginGraphqlLoader = (options?: {
     noSourceMap?: boolean;
+    sourceMapOptions?: SourceMapOptions;
 }) => {
     // RegEx to match GraphQL file extensions.
     const graphqlRegex = /\.(?:gql|graphql)$/;
@@ -186,7 +187,7 @@ export const vitePluginGraphqlLoader = (options?: {
                 code: outputCode.toString(),
                 map: options?.noSourceMap
                     ? ({ mappings: "" } as SourceMap)
-                    : outputCode.generateMap(),
+                    : outputCode.generateMap(options?.sourceMapOptions),
             };
         },
     };

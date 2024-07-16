@@ -8,7 +8,6 @@ import { PluginOption } from "vite";
 import { basename, extname, join } from "path";
 import { existsSync } from "fs";
 import { gql } from "graphql-tag";
-import { ASTNode, DefinitionNode, Kind } from "graphql";
 
 const plugin = vitePluginGraphqlLoader();
 

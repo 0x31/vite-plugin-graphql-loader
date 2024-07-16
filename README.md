@@ -102,6 +102,15 @@ console.log(_fragments.ExampleFragment); // Has type `FragmentDefinitionNode`
 
 ## Changelog
 
+**_v4.0.1_**:
+
+-   Allow passing `sourceMapOptions` when initializing the plugin to configure how the source map is generated (see options [here](https://github.com/Rich-Harris/magic-string?tab=readme-ov-file#sgeneratemap-options-)). `noSourceMap` can alternatively be used to disable source map generation. For example, to enable more detailed source maps:
+
+```ts
+import graphqlLoader from "vite-plugin-graphql-loader";
+graphqlLoader({ sourceMapOptions: { hires: true } });
+```
+
 **_v4.0.0_**:
 
 -   Added source-map generation. Can by disabled by initializing with `graphqlLoader({noSourceMap: true})`.
