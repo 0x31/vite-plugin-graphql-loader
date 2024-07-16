@@ -1,9 +1,10 @@
 tests/
-src/
-README.md
 tsconfig.json
 vitest.config.ts
+.eslint.json
 node_modules/
+bun.lockb
+.gitignore
 
 ###########################
 ### OTHER GENERIC FILES ###

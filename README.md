@@ -101,6 +101,12 @@ console.log(_fragments.ExampleFragment); // Has type `FragmentDefinitionNode`
 
 ## Changelog
 
+**_v4.0.0_**:
+
+-   Added source-map generation. Can by disabled by initializing with `graphqlLoader({noSourceMap: true})`.
+-   Refactored code generation to be more maintainable, added more test cases.
+-   Migrated from `yarn` to `bun`.
+
 **_v3.0.1_**:
 
 -   Switched `await import` statements to top-level `import` statements (fixes #5 - `Top-level await is not available` error).
