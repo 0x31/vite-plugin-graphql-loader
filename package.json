@@ -34,12 +34,15 @@
     "homepage": "https://github.com/noiach/vite-plugin-graphql-loader#readme",
     "dependencies": {
         "graphql": "^16.8.1",
-        "graphql-tag": "^2.12.6"
+        "graphql-tag": "^2.12.6",
+        "magic-string": "^0.30.10"
     },
     "devDependencies": {
+        "@babel/parser": "^7.24.8",
+        "@babel/traverse": "^7.24.8",
+        "@types/babel__traverse": "^7.20.6",
         "@types/node": "^20",
         "eslint": "^8.56.0",
-        "glob": "^10.3.10",
         "prettier": "^3.2.4",
         "rimraf": "^5.0.5",
         "typescript": "^5.3.3",

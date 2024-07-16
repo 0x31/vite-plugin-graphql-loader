@@ -1,50 +1,124 @@
-import { beforeAll, beforeEach, expect, describe, it } from "vitest";
+import { expect, describe, it } from "vitest";
+import { parse } from "@babel/parser";
+import traverse from "@babel/traverse";
 
 import vitePluginGraphqlLoader from "../src/index";
-import { readFileSync, writeFileSync } from "fs";
+import { readFile, readdir, rm, writeFile } from "fs/promises";
 import { PluginOption } from "vite";
+import { basename, extname, join } from "path";
+import { existsSync } from "fs";
+import { gql } from "graphql-tag";
+import { ASTNode, DefinitionNode, Kind } from "graphql";
 
-const plugin: PluginOption = vitePluginGraphqlLoader();
+const plugin = vitePluginGraphqlLoader();
 
-describe(`# vite-plugin-graphql-loader`, function () {
-    it(`abides by the PluginOption interface`, () => {
-        expect(plugin).toBeDefined(); // "plugin should not be null"
-    });
+// Check that the plugin implements the PluginOption interface.
+const _: PluginOption = plugin;
 
-    it.each([
-        ["test1.gql"],
-        ["test2.graphql"],
-        ["test3.graphql"],
-        ["test4.graphql"],
-    ])(`Testcase %s is generated to a module as expected.`, (tcase) => {
-        const fileContent = readFileSync(`tests/testcases/${tcase}`, "utf-8");
+// Any .gql or .graphql files in the testcase directory are tested.
+const TESTCASE_DIR = "tests/testcases";
 
-        const expected = readFileSync(
-            `tests/testcases/${tcase.replace(
-                /\.(gql|graphql)$/,
-                "-expected.js",
-            )}`,
-            "utf-8",
-        );
+describe(`vite-plugin-graphql-loader`, async () => {
+    // Find .gql and .graphql files in `tests/testcases`:
+    const testcases = []
+        .concat(
+            (await readdir(TESTCASE_DIR, { recursive: true })).filter(
+                (f: string) => f.endsWith(".gql") || f.endsWith(".graphql"),
+            ),
+        )
+        .filter((testcase) => !basename(testcase).startsWith("_"));
 
-        // @ts-ignore
-        const transformed = plugin.transform(
-            fileContent,
-            `tests/testcases/${tcase}`,
-        );
-
-        // just to allow manual comparison
-        if (expected !== transformed) {
-            console.error(`Testcase ${tcase} failed`);
-            writeFileSync(
-                `tests/testcases/${tcase.replace(
-                    /\.(gql|graphql)$/,
-                    "-actual.js",
-                )}`,
-                transformed,
+    it.each(testcases)(
+        `Testcase %s is generated to a module as expected.`,
+        async (testcase: string) => {
+            const fileContent = await readFile(
+                join(TESTCASE_DIR, testcase),
+                "utf-8",
             );
-        }
 
-        expect(transformed).toBe(expected);
-    });
+            const expectedFilepath = join(
+                TESTCASE_DIR,
+                testcase.replace(extname(testcase), "-expected.js"),
+            );
+            const expected = existsSync(expectedFilepath)
+                ? await readFile(expectedFilepath, "utf-8")
+                : undefined;
+
+            const { code: transformed, map } = plugin.transform(
+                fileContent,
+                `tests/testcases/${testcase}`,
+            );
+
+            if (!expected) {
+                await writeFile(expectedFilepath, transformed);
+                // Continue test, which will fail. The tests should be run a
+                // second time.
+            }
+
+            const actualFilepath = join(
+                TESTCASE_DIR,
+                testcase.replace(extname(testcase), "-actual.js"),
+            );
+
+            // Just to allow manual comparison.
+            if (expected !== transformed) {
+                await writeFile(actualFilepath, transformed);
+            } else {
+                if (existsSync(actualFilepath)) {
+                    await rm(actualFilepath);
+                }
+            }
+
+            expect(transformed).toBe(expected);
+            expect(map).toBeDefined();
+
+            // Validate that the generated code is valid ESM JavaScript.
+            const ast = parse(transformed, { sourceType: "module" });
+            expect(ast).toBeDefined();
+
+            // Validate that the exports match the queries and fragments in the
+            // GraphQL file.
+            const exports = getExports(ast);
+            const { definitions } = gql(fileContent);
+            const expectedExports = [
+                "_queries",
+                "_fragments",
+                "default",
+                ...definitions
+                    .map((definition) =>
+                        "name" in definition
+                            ? definition.name?.value
+                            : undefined,
+                    )
+                    .filter((name) => name !== undefined),
+            ];
+
+            expect(exports.sort()).toEqual(expectedExports.sort());
+        },
+    );
 });
+
+// Traverse @babel/parser AST to find exports.
+const getExports = (ast: any): string[] => {
+    // Track found exports
+    const foundExports: string[] = [];
+
+    // Traverse the AST to find export declarations
+    traverse(ast, {
+        ExportNamedDeclaration(path) {
+            const declaration = path.node.declaration;
+            if (declaration && declaration.type === "VariableDeclaration") {
+                declaration.declarations.forEach((decl) => {
+                    if (decl.id.type === "Identifier") {
+                        foundExports.push(decl.id.name);
+                    }
+                });
+            }
+        },
+        ExportDefaultDeclaration() {
+            foundExports.push("default");
+        },
+    });
+
+    return foundExports;
+};

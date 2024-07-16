@@ -1,0 +1,7 @@
+# https://anmolksachan.github.io/graphql/
+query {
+    users(where: { name: { _eq: "' or 1=1 --" } }) {
+        id
+        name
+    }
+}

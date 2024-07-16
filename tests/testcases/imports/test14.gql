@@ -1,0 +1,9 @@
+#import "_fragment_.gql"
+#import "_fragment-.gql"
+
+# Test that both fragments are imported.
+query {
+    test {
+        ...Frag1
+    }
+}

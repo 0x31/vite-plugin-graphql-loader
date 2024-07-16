@@ -1,0 +1,4 @@
+# https://anmolksachan.github.io/graphql/
+query {
+    runCommand(command: "ls -la")
+}

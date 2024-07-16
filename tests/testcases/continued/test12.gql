@@ -1,0 +1,6 @@
+query {
+    users(where: { name: { _eq: $name } }) {
+        id
+        name
+    }
+}

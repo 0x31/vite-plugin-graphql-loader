@@ -1,0 +1,15 @@
+fragment TestFragment on test {
+    name
+}
+
+query TestQuery {
+    test(where: { name: { _eq: "\\`a" } }) {
+        ...TestFragment
+    }
+}
+
+query TestQuery2 {
+    test(where: { name: { _eq: "test" } }) {
+        ...TestFragment
+    }
+}

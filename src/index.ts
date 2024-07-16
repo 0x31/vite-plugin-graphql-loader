@@ -1,60 +1,125 @@
 import { EOL } from "os";
 import { gql } from "graphql-tag";
+import MagicString, { SourceMap } from "magic-string";
 import {
-    ONE_QUERY_FUNCTION_TEMPLATE,
-    UNIQUE_FUNCTION_TEMPLATE,
+    vitePluginGraphqlLoaderUniqueChecker,
+    vitePluginGraphqlLoaderExtractQuery,
 } from "./snippets.js";
+import { DocumentNode } from "graphql";
+
+const DOC_NAME = "_gql_doc";
 
 // Resolves GraphQL #import statements into ESM import statements.
-const expandImports = (source: string) => {
+const expandImports = (
+    source: string,
+): { imports: string[]; importAppends: string[] } => {
     const lines = source.split(/\r\n|\r|\n/);
-    let outputCode: string;
 
+    const importNames = new Set<string>();
+    const imports = [];
+    const importAppends = [];
+
+    // Go through each line, checking if it is an import. Uses `.some` instead
+    // of `.forEach` so it can return early after finding a non-export.
     lines.some((line: string) => {
         const result = line.match(/^#\s?import (.+)$/);
+
+        // If it's an import, replace it with an ESM import.
         if (result) {
             const [_, importFile] = result;
 
-            const importName =
-                "Import_" + importFile.replace(/[^a-z0-9]/gi, "_");
-            // Add the import statement and the code to append the definitions.
-            const importStatement = `import ${importName} from ${importFile};`;
-            const appendDefinition = `doc.definitions = doc.definitions.concat(unique(${importName}.definitions));`;
-            outputCode =
-                (outputCode ?? UNIQUE_FUNCTION_TEMPLATE) +
-                importStatement +
-                EOL +
-                appendDefinition +
-                EOL;
+            // Generate name for the import based on the filepath.
+            let importName = "Import_" + importFile.replace(/[^a-z0-9]/gi, "_");
+            // Ensure import name is unique.
+            while (importNames.has(importName)) {
+                importName = importName + "_";
+            }
+            importNames.add(importName);
+
+            imports.push(`import ${importName} from ${importFile};\n`);
+            importAppends.push(
+                `${DOC_NAME}.definitions = ${DOC_NAME}.definitions.concat(${vitePluginGraphqlLoaderUniqueChecker.name}(${importName}.definitions));\n`,
+            );
         }
-        return line.length > 0 && line[0] !== "#";
+
+        // One we've reached a non-import line, return true to stop iterating.
+        return line.length !== 0 && line[0] !== "#";
     });
 
-    return outputCode ?? "";
+    return { imports, importAppends };
 };
 
 /** Vite GraphQL Loader. */
-export const vitePluginGraphqlLoader = () => {
+export const vitePluginGraphqlLoader = (options?: {
+    noSourceMap?: boolean;
+}) => {
+    // RegEx to match GraphQL file extensions.
     const graphqlRegex = /\.(?:gql|graphql)$/;
 
     return {
         name: "graphql-loader",
+
+        // Run before Vite core plugins.
         enforce: "pre" as const,
 
         transform(source: string, id: string) {
+            // Only transform GraphQL files (.gql or .graphql).
             if (!graphqlRegex.test(id)) {
                 return;
             }
 
-            const documentNode = gql`
-                ${source}
-            `;
-            const headerCode = `
-const doc = ${JSON.stringify(documentNode)};
-doc.loc.source = ${JSON.stringify(documentNode.loc.source)};
-          `;
+            let documentNode: DocumentNode;
+            try {
+                documentNode = gql`
+                    ${source}
+                `;
+            } catch (error) {
+                // graphql-tag error thrown from vite-plugin-graphql-loader:
+                throw new Error(String(error));
+            }
 
-            let outputCode = "";
+            // MagicString is used to generate the source map.
+            let outputCode = new MagicString(source).replaceAll("`", "\\`");
+
+            outputCode.prepend(`const _gql_source = \``);
+            // ORIGINAL SOURCE CODE ENDS UP BETWEEN THESE TWO LINES, AS A JS
+            // STRING.
+            outputCode.append(`\`;\n`);
+
+            const plainDocument = Object.assign({}, documentNode);
+            Object.assign(plainDocument.loc, documentNode.loc);
+
+            // Convert document node to plain object.
+            const documentObject = JSON.parse(JSON.stringify(documentNode));
+
+            const sourceBodyIdentifier = `_gql_uuid_${new Date().getTime()}`;
+            if (documentNode.loc && documentNode.loc.source) {
+                // In order to set `loc.source.body` to _gql_source, we replace
+                // it with a temporary identifier and then replace it with a
+                // reference to _gql_source, which is the source-mapped version.
+                documentObject.loc.source = {
+                    name: documentNode.loc.source.name,
+                    locationOffset: documentNode.loc.source.locationOffset,
+                    body: sourceBodyIdentifier,
+                };
+            }
+
+            outputCode.append(
+                `const ${DOC_NAME} = ${JSON.stringify(documentObject).replace(
+                    `"${sourceBodyIdentifier}"`,
+                    "_gql_source",
+                )};\n`,
+            );
+
+            // Resolve #import statements.
+            const { imports, importAppends } = expandImports(source);
+            if (imports.length) {
+                outputCode.prepend(imports.join(""));
+                outputCode.append(
+                    `const ${vitePluginGraphqlLoaderUniqueChecker.name} = ${vitePluginGraphqlLoaderUniqueChecker.toString()};\n`,
+                );
+                outputCode.append(importAppends.join(""));
+            }
 
             // Allow multiple query/mutation definitions in a file. This parses out dependencies
             // at compile time, and then uses those at load time to create minimal query documents
@@ -66,12 +131,16 @@ doc.loc.source = ${JSON.stringify(documentNode.loc.source)};
                     op.name,
             ).length;
 
-            if (operationCount < 1) {
-                outputCode += `
-export default doc;
-            `;
-            } else {
-                outputCode += ONE_QUERY_FUNCTION_TEMPLATE;
+            const queryNames = [];
+            const fragmentNames = [];
+
+            if (operationCount >= 1) {
+                const extractQueries = operationCount > 1 || imports.length > 0;
+                if (extractQueries) {
+                    outputCode.append(
+                        `const ${vitePluginGraphqlLoaderExtractQuery.name} = ${vitePluginGraphqlLoaderExtractQuery.toString()};\n`,
+                    );
+                }
 
                 for (const op of documentNode.definitions) {
                     if (
@@ -89,25 +158,36 @@ export default doc;
                         }
 
                         const opName = op.name.value;
-                        outputCode += `
-export const ${opName} = oneQuery(doc, "${opName}");`;
+                        outputCode.append(
+                            `export const ${opName} = ${extractQueries ? `${vitePluginGraphqlLoaderExtractQuery.name}(${DOC_NAME}, "${opName}")` : DOC_NAME};\n`,
+                        );
 
                         if (op.kind === "OperationDefinition") {
-                            outputCode += `
-_queries["${opName}"] = ${opName};`;
+                            queryNames.push(opName);
                         } else {
-                            outputCode += `
-_fragments["${opName}"] = ${opName};`;
+                            fragmentNames.push(opName);
                         }
                     }
                 }
             }
 
-            const importOutputCode = expandImports(source);
-            const allCode =
-                headerCode + EOL + importOutputCode + EOL + outputCode + EOL;
+            outputCode.append(
+                `export const _queries = {${queryNames.join(",")}};\n`,
+            );
+            outputCode.append(
+                `export const _fragments = {${fragmentNames.join(",")}};\n`,
+            );
 
-            return allCode;
+            outputCode.append(`export default ${DOC_NAME};\n`);
+
+            outputCode.replaceAll("\n", EOL);
+
+            return {
+                code: outputCode.toString(),
+                map: options?.noSourceMap
+                    ? ({ mappings: "" } as SourceMap)
+                    : outputCode.generateMap(),
+            };
         },
     };
 };
