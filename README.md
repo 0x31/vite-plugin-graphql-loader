@@ -2,10 +2,11 @@
 
 [![NPM](https://nodei.co/npm/vite-plugin-graphql-loader.png?downloads=true&downloadRank=true&stars=true)](https://nodei.co/npm/vite-plugin-graphql-loader/)
 
-[![npm version](https://img.shields.io/npm/v/vite-plugin-graphql-loader.svg)](https://www.npmjs.com/package/vite-plugin-graphql-loader)
-![Tag: Vite Plugin](https://img.shields.io/badge/Vite_Plugin-orange)
-![Tag: GraphQL](https://img.shields.io/badge/GraphQL-orange)
-![Tag: JavaScript](https://img.shields.io/badge/JavaScript-orange)
+[![npm version](https://img.shields.io/npm/v/bun-graphql-loader.svg?logoColor=fff&style=for-the-badge)](https://www.npmjs.com/package/bun-graphql-loader)
+![Vite Badge](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=fff&style=for-the-badge)
+![Vitest Badge](https://img.shields.io/badge/Vitest-6E9F18?logo=vitest&logoColor=fff&style=for-the-badge)
+![GraphQL Badge](https://img.shields.io/badge/GraphQL-E10098?logo=graphql&logoColor=fff&style=for-the-badge)
+![TypeScript Badge](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=fff&style=for-the-badge)
 
 A Vite plugin for loading GraphQL .gql and .graphql files, based on [graphql-tag/loader](https://github.com/apollographql/graphql-tag)
 
