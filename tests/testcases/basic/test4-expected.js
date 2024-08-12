@@ -27,7 +27,7 @@ const vitePluginGraphqlLoaderUniqueChecker = (defs) => {
     }
   });
 };
-_gql_doc.definitions = _gql_doc.definitions.concat(vitePluginGraphqlLoaderUniqueChecker(Import____test1_gql_.definitions));
+_gql_doc.definitions = vitePluginGraphqlLoaderUniqueChecker(_gql_doc.definitions.concat(Import____test1_gql_.definitions));
 const vitePluginGraphqlLoaderExtractQuery = (doc, operationName) => {
   const collectFragmentReferences = (node, refs) => {
     if (node.kind === "FragmentSpread") {

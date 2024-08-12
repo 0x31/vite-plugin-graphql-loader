@@ -2,7 +2,7 @@
 
 [![NPM](https://nodei.co/npm/vite-plugin-graphql-loader.png?downloads=true&downloadRank=true&stars=true)](https://www.npmjs.com/package/vite-plugin-graphql-loader/)
 
-[![npm version](https://img.shields.io/npm/v/bun-graphql-loader.svg?logoColor=fff&style=for-the-badge)](https://www.npmjs.com/package/bun-graphql-loader)
+[![npm version](https://img.shields.io/npm/v/vite-plugin-graphql-loader.svg?logoColor=fff&style=for-the-badge)](https://www.npmjs.com/package/vite-plugin-graphql-loader)
 ![Vite Badge](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=fff&style=for-the-badge)
 ![Vitest Badge](https://img.shields.io/badge/Vitest-6E9F18?logo=vitest&logoColor=fff&style=for-the-badge)
 ![GraphQL Badge](https://img.shields.io/badge/GraphQL-E10098?logo=graphql&logoColor=fff&style=for-the-badge)

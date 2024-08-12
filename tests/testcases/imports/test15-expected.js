@@ -24,8 +24,8 @@ const vitePluginGraphqlLoaderUniqueChecker = (defs) => {
     }
   });
 };
-_gql_doc.definitions = _gql_doc.definitions.concat(vitePluginGraphqlLoaderUniqueChecker(Import___fragment__gql_.definitions));
-_gql_doc.definitions = _gql_doc.definitions.concat(vitePluginGraphqlLoaderUniqueChecker(Import___fragment__gql__.definitions));
+_gql_doc.definitions = vitePluginGraphqlLoaderUniqueChecker(_gql_doc.definitions.concat(Import___fragment__gql_.definitions));
+_gql_doc.definitions = vitePluginGraphqlLoaderUniqueChecker(_gql_doc.definitions.concat(Import___fragment__gql__.definitions));
 export const _queries = {};
 export const _fragments = {};
 export default _gql_doc;

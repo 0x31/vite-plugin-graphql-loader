@@ -38,7 +38,7 @@ const expandImports = (
 
             imports.push(`import ${importName} from ${importFile};\n`);
             importAppends.push(
-                `${DOC_NAME}.definitions = ${DOC_NAME}.definitions.concat(${vitePluginGraphqlLoaderUniqueChecker.name}(${importName}.definitions));\n`,
+                `${DOC_NAME}.definitions = ${vitePluginGraphqlLoaderUniqueChecker.name}(${DOC_NAME}.definitions.concat(${importName}.definitions));\n`,
             );
         }
 
