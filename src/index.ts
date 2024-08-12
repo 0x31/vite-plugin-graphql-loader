@@ -22,7 +22,7 @@ const expandImports = (
     // Go through each line, checking if it is an import. Uses `.some` instead
     // of `.forEach` so it can return early after finding a non-export.
     lines.some((line: string) => {
-        const result = line.match(/^#\s?import (.+)$/);
+        const result = line.match(/^#\s?import (?:.* from )?(.+)$/);
 
         // If it's an import, replace it with an ESM import.
         if (result) {
