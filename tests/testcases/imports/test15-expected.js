@@ -14,13 +14,14 @@ const _gql_doc = {"kind":"Document","definitions":[{"kind":"OperationDefinition"
 const vitePluginGraphqlLoaderUniqueChecker = (defs) => {
   const names = {};
   return defs.filter(function(def) {
-    if (def.kind !== "FragmentDefinition") return true;
+    if (def.kind !== "FragmentDefinition")
+      return !0;
     const name = def.name.value;
-    if (names[name]) {
-      return false;
-    } else {
-      names[name] = true;
-      return true;
+    if (names[name])
+      return !1;
+    else {
+      names[name] = !0;
+      return !0;
     }
   });
 };
