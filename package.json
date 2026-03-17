@@ -1,6 +1,6 @@
 {
     "name": "vite-plugin-graphql-loader",
-    "version": "4.0.4",
+    "version": "5.0.0",
     "description": "A Vite plugin for loading GraphQL files.",
     "keywords": [
         "graphql",
