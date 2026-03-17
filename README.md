@@ -1,13 +1,11 @@
 # vite-plugin-graphql-loader
 
-![License](https://img.shields.io/github/license/0x31/vite-plugin-graphql-loader?style=for-the-badge&labelColor=2e3440&color=6f4fbe)
-![Version](https://img.shields.io/npm/v/vite-plugin-graphql-loader.svg?label=Version&style=for-the-badge&labelColor=2e3440&color=eea837)
-![Downloads](https://img.shields.io/npm/dw/vite-plugin-graphql-loader?style=for-the-badge&labelColor=2e3440&color=50b6a9)
-![Vite Badge](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=fff&style=for-the-badge)
-![GraphQL Badge](https://img.shields.io/badge/GraphQL-E10098?logo=graphql&logoColor=fff&style=for-the-badge&color=ee4367)
-![TypeScript Badge](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=fff&style=for-the-badge)
-
-<!-- ![Vitest Badge](https://img.shields.io/badge/Vitest-6E9F18?logo=vitest&logoColor=fff&style=for-the-badge&color=10ad6a) -->
+[![License](https://img.shields.io/github/license/0x31/vite-plugin-graphql-loader?style=for-the-badge&labelColor=2e3440&color=6f4fbe)](https://github.com/0x31/vite-plugin-graphql-loader/blob/master/LICENSE.txt)
+[![Version](https://img.shields.io/npm/v/vite-plugin-graphql-loader.svg?label=Version&style=for-the-badge&labelColor=2e3440&color=eea837)](https://www.npmjs.com/package/vite-plugin-graphql-loader)
+[![Downloads](https://img.shields.io/npm/dw/vite-plugin-graphql-loader?style=for-the-badge&labelColor=2e3440&color=50b6a9)](https://www.npmjs.com/package/vite-plugin-graphql-loader)
+[![Vite Badge](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=fff&style=for-the-badge)](https://vite.dev)
+[![GraphQL Badge](https://img.shields.io/badge/GraphQL-E10098?logo=graphql&logoColor=fff&style=for-the-badge&color=ee4367)](https://graphql.org)
+[![TypeScript Badge](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=fff&style=for-the-badge)](https://www.typescriptlang.org)
 
 A Vite plugin for loading GraphQL .gql and .graphql files, based on [graphql-tag/loader](https://github.com/apollographql/graphql-tag)
 
@@ -16,13 +14,13 @@ This package _doesn't_ generate TypeScript definitions from the queries and frag
 ## Install
 
 ```bash
-yarn add -D vite-plugin-graphql-loader
+yarn add -D vite-plugin-graphql-loader graphql
 ```
 
 or
 
 ```bash
-npm i vite-plugin-graphql-loader --save-dev
+npm i --save-dev vite-plugin-graphql-loader graphql
 ```
 
 ## Usage
@@ -74,14 +72,14 @@ import { FirstQuery, SecondQuery } from "./example.graphql";
 
 If you are using TypeScript, you will have to declare `.gql` or `.graphql` files.
 
-Create `graphql.d.ts` anywhere in your source directory and
+Create `graphql.d.ts` anywhere in your source directory:
 
 ```typescript
 declare module "*.gql";
 declare module "*.graphql";
 ```
 
-**_Alternatively_**, change it to this (replacing .gql with .graphql depending on what you use):
+**_Alternatively_**, for full type information (replacing `.gql` with `.graphql` depending on what you use):
 
 ```typescript
 declare module "*.gql" {
@@ -123,7 +121,7 @@ graphqlLoader({ sourceMapOptions: { hires: true } });
 
 **_v4.0.0_**:
 
-- Added source-map generation. Can by disabled by initializing with `graphqlLoader({noSourceMap: true})`.
+- Added source-map generation. Can be disabled by initializing with `graphqlLoader({noSourceMap: true})`.
 - Refactored code generation to be more maintainable, added more test cases.
 - Migrated from `yarn` to `bun`.
 

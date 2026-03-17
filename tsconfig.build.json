@@ -7,5 +7,5 @@
         "sourceMap": true,
         "outDir": "dist"
     },
-    "exclude": ["node_modules", "dist", "tests", "vitest.config.ts", "integration-test"]
+    "exclude": ["node_modules", "dist", "tests", "vitest.config.ts", "integration-test", "test-app"]
 }
