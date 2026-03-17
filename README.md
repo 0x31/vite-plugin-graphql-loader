@@ -88,10 +88,7 @@ declare module "*.gql" {
     const Query: import("graphql").DocumentNode;
     export default Query;
     export const _queries: Record<string, import("graphql").DocumentNode>;
-    export const _fragments: Record<
-        string,
-        import("graphql").FragmentDefinitionNode
-    >;
+    export const _fragments: Record<string, import("graphql").FragmentDefinitionNode>;
 }
 ```
 
@@ -106,9 +103,18 @@ console.log(_fragments.ExampleFragment); // Has type `FragmentDefinitionNode`
 
 ## Changelog
 
+**_v5.0.0_**:
+
+- **Breaking:** `graphql` is now a peer dependency. If you don't already have it installed, run `npm i graphql`.
+- Added `vite` as a peer dependency with support for vite 5, 6, 7, and 8.
+- Switched build tooling to tsgo (TypeScript 7 native compiler), oxlint, and oxfmt.
+- Updated all dependencies to latest versions.
+- Added integration test suite covering all import styles and query patterns.
+- Fixed named import syntax (`#import ... from ...`) not being published in v4.0.4 (fixes #12).
+
 **_v4.0.1_**:
 
--   Allow passing `sourceMapOptions` when initializing the plugin to configure how the source map is generated (see options [here](https://github.com/Rich-Harris/magic-string?tab=readme-ov-file#sgeneratemap-options-)). `noSourceMap` can alternatively be used to disable source map generation. For example, to enable more detailed source maps:
+- Allow passing `sourceMapOptions` when initializing the plugin to configure how the source map is generated (see options [here](https://github.com/Rich-Harris/magic-string?tab=readme-ov-file#sgeneratemap-options-)). `noSourceMap` can alternatively be used to disable source map generation. For example, to enable more detailed source maps:
 
 ```ts
 import graphqlLoader from "vite-plugin-graphql-loader";
@@ -117,16 +123,16 @@ graphqlLoader({ sourceMapOptions: { hires: true } });
 
 **_v4.0.0_**:
 
--   Added source-map generation. Can by disabled by initializing with `graphqlLoader({noSourceMap: true})`.
--   Refactored code generation to be more maintainable, added more test cases.
--   Migrated from `yarn` to `bun`.
+- Added source-map generation. Can by disabled by initializing with `graphqlLoader({noSourceMap: true})`.
+- Refactored code generation to be more maintainable, added more test cases.
+- Migrated from `yarn` to `bun`.
 
 **_v3.0.1_**:
 
--   Switched `await import` statements to top-level `import` statements (fixes #5 - `Top-level await is not available` error).
--   Added `_queries` and `_fragments` for improved module declaration types.
--   Updated snippets to be defined in TypeScript and then stringified.
+- Switched `await import` statements to top-level `import` statements (fixes #5 - `Top-level await is not available` error).
+- Added `_queries` and `_fragments` for improved module declaration types.
+- Updated snippets to be defined in TypeScript and then stringified.
 
 **_v3.0.0_**:
 
--   [Moved from CJS to ESM](https://github.com/0x31/vite-plugin-graphql-loader/commit/0e0b37cfcb0ecbdf28e985aeca3454137b4b73e3), inline with Vite 5.0's CJS deprecation. If you are using CommonJS, continue using v2.0 of this package. If you have `"type": "module"`, in your `package.json` then it should work as expected.
+- [Moved from CJS to ESM](https://github.com/0x31/vite-plugin-graphql-loader/commit/0e0b37cfcb0ecbdf28e985aeca3454137b4b73e3), inline with Vite 5.0's CJS deprecation. If you are using CommonJS, continue using v2.0 of this package. If you have `"type": "module"`, in your `package.json` then it should work as expected.

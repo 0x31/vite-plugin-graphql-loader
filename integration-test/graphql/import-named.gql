@@ -1,0 +1,7 @@
+#import UserFields from ./fragment.gql
+
+query GetUserNamed($id: ID!) {
+    user(id: $id) {
+        ...UserFields
+    }
+}

@@ -30,10 +30,7 @@ describe(`vite-plugin-graphql-loader`, async () => {
     it.each(testcases)(
         `Testcase %s is generated to a module as expected.`,
         async (testcase: string) => {
-            const fileContent = await readFile(
-                join(TESTCASE_DIR, testcase),
-                "utf-8",
-            );
+            const fileContent = await readFile(join(TESTCASE_DIR, testcase), "utf-8");
 
             const expectedFilepath = join(
                 TESTCASE_DIR,
@@ -85,9 +82,7 @@ describe(`vite-plugin-graphql-loader`, async () => {
                 "default",
                 ...definitions
                     .map((definition) =>
-                        "name" in definition
-                            ? definition.name?.value
-                            : undefined,
+                        "name" in definition ? definition.name?.value : undefined,
                     )
                     .filter((name) => name !== undefined),
             ];

@@ -1,0 +1,6 @@
+query SearchUsers {
+    users(where: { name: { _eq: "`template`" } }) {
+        id
+        name
+    }
+}

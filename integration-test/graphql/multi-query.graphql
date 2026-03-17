@@ -1,0 +1,19 @@
+fragment PostFields on Post {
+    title
+    body
+}
+
+query GetPosts {
+    posts {
+        ...PostFields
+    }
+}
+
+query GetPost($id: ID!) {
+    post(id: $id) {
+        ...PostFields
+        author {
+            name
+        }
+    }
+}

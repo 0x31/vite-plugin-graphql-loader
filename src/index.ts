@@ -10,14 +10,12 @@ import { DocumentNode } from "graphql";
 const DOC_NAME = "_gql_doc";
 
 // Resolves GraphQL #import statements into ESM import statements.
-const expandImports = (
-    source: string,
-): { imports: string[]; importAppends: string[] } => {
+const expandImports = (source: string): { imports: string[]; importAppends: string[] } => {
     const lines = source.split(/\r\n|\r|\n/);
 
     const importNames = new Set<string>();
-    const imports = [];
-    const importAppends = [];
+    const imports: string[] = [];
+    const importAppends: string[] = [];
 
     // Go through each line, checking if it is an import. Uses `.some` instead
     // of `.forEach` so it can return early after finding a non-export.
@@ -46,7 +44,7 @@ const expandImports = (
             );
         }
 
-        // One we've reached a non-import line, return true to stop iterating.
+        // Once we've reached a non-import line, return true to stop iterating.
         return line.length !== 0 && line[0] !== "#";
     });
 
@@ -92,7 +90,7 @@ export const vitePluginGraphqlLoader = (options?: {
             outputCode.append(`\`;\n`);
 
             const plainDocument = Object.assign({}, documentNode);
-            Object.assign(plainDocument.loc, documentNode.loc);
+            Object.assign(plainDocument.loc!, documentNode.loc);
 
             // Convert document node to plain object.
             const documentObject = JSON.parse(JSON.stringify(documentNode));
@@ -131,13 +129,12 @@ export const vitePluginGraphqlLoader = (options?: {
             // We cannot do the latter at compile time due to how the #import code works.
             const operationCount = documentNode.definitions.filter(
                 (op) =>
-                    (op.kind === "OperationDefinition" ||
-                        op.kind === "FragmentDefinition") &&
+                    (op.kind === "OperationDefinition" || op.kind === "FragmentDefinition") &&
                     op.name,
             ).length;
 
-            const queryNames = [];
-            const fragmentNames = [];
+            const queryNames: string[] = [];
+            const fragmentNames: string[] = [];
 
             if (operationCount >= 1) {
                 const extractQueries = operationCount > 1 || imports.length > 0;
@@ -148,10 +145,7 @@ export const vitePluginGraphqlLoader = (options?: {
                 }
 
                 for (const op of documentNode.definitions) {
-                    if (
-                        op.kind === "OperationDefinition" ||
-                        op.kind === "FragmentDefinition"
-                    ) {
+                    if (op.kind === "OperationDefinition" || op.kind === "FragmentDefinition") {
                         if (!op.name) {
                             if (operationCount > 1) {
                                 throw new Error(
@@ -176,12 +170,8 @@ export const vitePluginGraphqlLoader = (options?: {
                 }
             }
 
-            outputCode.append(
-                `export const _queries = {${queryNames.join(",")}};\n`,
-            );
-            outputCode.append(
-                `export const _fragments = {${fragmentNames.join(",")}};\n`,
-            );
+            outputCode.append(`export const _queries = {${queryNames.join(",")}};\n`);
+            outputCode.append(`export const _fragments = {${fragmentNames.join(",")}};\n`);
 
             outputCode.append(`export default ${DOC_NAME};\n`);
 

@@ -1,0 +1,10 @@
+{
+    "compilerOptions": {
+        "module": "ESNext",
+        "target": "ESNext",
+        "moduleResolution": "bundler",
+        "strict": true,
+        "types": ["node"]
+    },
+    "include": ["*.ts", "graphql.d.ts"]
+}

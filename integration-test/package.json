@@ -1,0 +1,15 @@
+{
+    "name": "integration-test",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "test": "vite build && node verify.js"
+    },
+    "dependencies": {
+        "@types/node": "^25",
+        "graphql": "^16.13.1",
+        "typescript": "^5.9.3",
+        "vite": "^8.0.0",
+        "vite-plugin-graphql-loader": "file:.."
+    }
+}

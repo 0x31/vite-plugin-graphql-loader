@@ -1,21 +1,10 @@
 {
     "compilerOptions": {
         "module": "NodeNext",
-        "target": "es2020",
-        "removeComments": true,
-        "declarationMap": true,
-        "declaration": true,
-        "sourceMap": true,
+        "target": "esnext",
         "moduleResolution": "NodeNext",
         "noImplicitAny": false,
-        "experimentalDecorators": true,
-        "allowJs": true,
-        "outDir": "dist",
+        "types": ["node"]
     },
-    "ts-node": {
-        "compilerOptions": {
-            "module": "commonjs",
-        },
-    },
-    "exclude": ["node_modules", "tests", "vitest.config.ts"],
+    "exclude": ["node_modules", "dist", "integration-test"]
 }

@@ -2,54 +2,65 @@
     "name": "vite-plugin-graphql-loader",
     "version": "4.0.4",
     "description": "A Vite plugin for loading GraphQL files.",
-    "type": "module",
-    "main": "dist/index.js",
-    "types": "dist/index.d.ts",
-    "files": [
-        "dist",
-        "package.json"
+    "keywords": [
+        "graphql",
+        "graphql-tag",
+        "vite",
+        "vite-plugin"
     ],
-    "scripts": {
-        "test": "vitest",
-        "build": "rimraf ./dist && tsc",
-        "package:bump": "yarn version --patch",
-        "package:publish": "bun run build && bun run package:bump && npm publish",
-        "lint": "prettier -w src tests/**/*.ts && eslint --fix"
+    "homepage": "https://github.com/0x31/vite-plugin-graphql-loader#readme",
+    "bugs": {
+        "url": "https://github.com/0x31/vite-plugin-graphql-loader/issues"
     },
+    "license": "ISC",
+    "author": "0x31",
     "repository": {
         "type": "git",
         "url": "git+https://github.com/0x31/vite-plugin-graphql-loader.git"
     },
-    "keywords": [
-        "vite",
-        "vite-plugin",
-        "graphql",
-        "graphql-tag"
+    "files": [
+        "dist",
+        "package.json"
     ],
-    "author": "0x31",
-    "license": "ISC",
-    "bugs": {
-        "url": "https://github.com/0x31/vite-plugin-graphql-loader/issues"
+    "type": "module",
+    "main": "dist/src/index.js",
+    "types": "dist/src/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/src/index.d.ts",
+            "import": "./dist/src/index.js"
+        }
     },
-    "homepage": "https://github.com/0x31/vite-plugin-graphql-loader#readme",
+    "scripts": {
+        "test": "vitest",
+        "build": "rimraf ./dist && tsgo --project tsconfig.build.json",
+        "lint": "oxlint --type-aware --ignore-pattern integration-test",
+        "lint:fix": "bun run lint --fix",
+        "format": "oxfmt",
+        "format:check": "oxfmt --check",
+        "package:bump": "yarn version --patch",
+        "package:publish": "bun run build && bun run package:bump && npm publish"
+    },
     "dependencies": {
-        "graphql": "^16.8.1",
         "graphql-tag": "^2.12.6",
-        "magic-string": "^0.30.10"
+        "magic-string": "^0.30.21"
     },
     "devDependencies": {
-        "@babel/parser": "^7.24.8",
-        "@babel/traverse": "^7.24.8",
-        "@types/babel__traverse": "^7.20.6",
-        "@types/node": "^20",
-        "eslint": "^8.56.0",
-        "prettier": "^3.2.4",
-        "rimraf": "^5.0.5",
-        "typescript": "^5.3.3",
-        "vite": "^5.0.12",
-        "vitest": "^1.2.1"
+        "@babel/parser": "^7.29.2",
+        "@babel/traverse": "^7.29.0",
+        "@types/babel__traverse": "^7.28.0",
+        "@types/node": "^25",
+        "@typescript/native-preview": "^7.0.0-dev",
+        "graphql": "^16.13.1",
+        "oxfmt": "^0.41.0",
+        "oxlint": "^1.56.0",
+        "oxlint-tsgolint": "^0.17.0",
+        "rimraf": "^6.1.3",
+        "vite": "^8.0.0",
+        "vitest": "^4.1.0"
     },
-    "prettier": {
-        "tabWidth": 4
+    "peerDependencies": {
+        "graphql": "^16.0.0",
+        "vite": "^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0"
     }
 }

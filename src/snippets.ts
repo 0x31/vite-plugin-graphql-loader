@@ -12,9 +12,7 @@ import type { ASTNode, DefinitionNode, DocumentNode } from "graphql";
 // Source: https://github.com/apollographql/graphql-tag/blob/main/loader.js
 // License: MIT (https://github.com/apollographql/graphql-tag/blob/main/LICENSE)
 
-export const vitePluginGraphqlLoaderUniqueChecker = (
-    defs: DefinitionNode[],
-) => {
+export const vitePluginGraphqlLoaderUniqueChecker = (defs: DefinitionNode[]) => {
     const names = {};
     return defs.filter(function (def) {
         if (def.kind !== "FragmentDefinition") return true;
@@ -28,10 +26,7 @@ export const vitePluginGraphqlLoaderUniqueChecker = (
     });
 };
 
-export const vitePluginGraphqlLoaderExtractQuery = (
-    doc: DocumentNode,
-    operationName: string,
-) => {
+export const vitePluginGraphqlLoaderExtractQuery = (doc: DocumentNode, operationName: string) => {
     // Recursively navigate node tree to find references to fragments.
     const collectFragmentReferences = (node: ASTNode, refs: Set<string>) => {
         if (node.kind === "FragmentSpread") {
@@ -66,10 +61,7 @@ export const vitePluginGraphqlLoaderExtractQuery = (
         // Extract references.
         doc.definitions.forEach(function (def: DefinitionNode) {
             if ("name" in def && def.name) {
-                definitionRefs[def.name.value] = collectFragmentReferences(
-                    def,
-                    new Set(),
-                );
+                definitionRefs[def.name.value] = collectFragmentReferences(def, new Set());
             }
         });
         return definitionRefs;
@@ -78,12 +70,7 @@ export const vitePluginGraphqlLoaderExtractQuery = (
     const findOperation = (doc: DocumentNode, name: string) => {
         for (let i = 0; i < doc.definitions.length; i++) {
             const element = doc.definitions[i];
-            if (
-                element &&
-                "name" in element &&
-                element.name &&
-                element.name.value == name
-            ) {
+            if (element && "name" in element && element.name && element.name.value === name) {
                 return element;
             }
         }
@@ -102,8 +89,6 @@ export const vitePluginGraphqlLoaderExtractQuery = (
     const allRefs = new Set<string>();
     let newRefs = new Set<string>();
 
-    // IE 11 doesn't support "new Set(iterable)", so we add the members of
-    // opRefs to newRefs one by one.
     opRefs.forEach((refName: string) => {
         newRefs.add(refName);
     });

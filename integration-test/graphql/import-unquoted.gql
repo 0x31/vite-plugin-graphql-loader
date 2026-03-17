@@ -1,0 +1,7 @@
+#import ./fragment.gql
+
+query GetUserUnquoted($id: ID!) {
+    user(id: $id) {
+        ...UserFields
+    }
+}
