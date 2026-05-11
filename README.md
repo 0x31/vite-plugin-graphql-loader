@@ -101,6 +101,14 @@ console.log(_fragments.ExampleFragment); // Has type `FragmentDefinitionNode`
 
 ## Changelog
 
+**_v5.1.1_**:
+
+- **Fix**: escape backslashes in the source before backticks and `${` so `loc.source.body` round-trips a GraphQL document containing `\` characters (e.g. a `String` default with a `\n` escape). Previously the emitted template literal interpreted the backslash sequences and `body !== source`.
+- **Fix**: use `Object.create(null)` for the deduplication map in `vitePluginGraphqlLoaderUniqueChecker` and for `definitionRefs` in `vitePluginGraphqlLoaderExtractQuery`. A fragment named `constructor`, `toString`, or any other `Object.prototype` property name was previously dropped on first occurrence because the plain-object lookup returned a truthy inherited value.
+- **Fix**: throw a clear error at transform time when a definition uses a reserved identifier name (`_gql_doc`, `_gql_source`, `_queries`, `_fragments`). Previously these names emitted duplicate `const` declarations and the module failed to load at runtime.
+- Release workflow now runs `format:check` and the integration test, matching the regular CI matrix.
+- Drop redundant `.npmignore` (`package.json#files` whitelist is authoritative) and dead `package:bump` / `package:publish` scripts (superseded by the tag-driven release workflow).
+
 **_v5.1.0_**:
 
 - **Security**: validate `#import` paths and reject those containing quotes, backticks, backslashes, or newlines (could otherwise inject code into the emitted ESM via a crafted path).

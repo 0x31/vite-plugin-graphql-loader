@@ -13,7 +13,10 @@ import type { ASTNode, DefinitionNode, DocumentNode } from "graphql";
 // License: MIT (https://github.com/apollographql/graphql-tag/blob/main/LICENSE)
 
 export const vitePluginGraphqlLoaderUniqueChecker = (defs: DefinitionNode[]) => {
-    const names = {};
+    // `Object.create(null)` so property lookups don't hit Object.prototype —
+    // a fragment named `constructor` or `toString` would otherwise be falsely
+    // reported as a duplicate and dropped on its first occurrence.
+    const names: Record<string, true> = Object.create(null);
     return defs.filter(function (def) {
         if (def.kind !== "FragmentDefinition") return true;
         const name = def.name.value;
@@ -57,7 +60,9 @@ export const vitePluginGraphqlLoaderExtractQuery = (doc: DocumentNode, operation
     };
 
     const extractReferences = (doc: DocumentNode) => {
-        const definitionRefs = {};
+        // `Object.create(null)` so a definition named `constructor` or
+        // `toString` doesn't collide with Object.prototype properties.
+        const definitionRefs: Record<string, Set<string>> = Object.create(null);
         // Extract references.
         doc.definitions.forEach(function (def: DefinitionNode) {
             if ("name" in def && def.name) {

@@ -14,7 +14,11 @@ import { PluginOption } from "vite";
 import { basename, extname, join } from "path";
 import { existsSync } from "fs";
 import { gql } from "graphql-tag";
-import { vitePluginGraphqlLoaderExtractQuery } from "../src/snippets.js";
+import {
+    vitePluginGraphqlLoaderExtractQuery,
+    vitePluginGraphqlLoaderUniqueChecker,
+} from "../src/snippets.js";
+import type { DefinitionNode } from "graphql";
 
 const plugin = vitePluginGraphqlLoader();
 
@@ -203,6 +207,87 @@ describe("regression: v5.1.0 fixes", () => {
         expect(captured?.message).toMatch(/tests\/broken\.graphql/);
         expect(captured?.cause).toBeDefined();
     });
+});
+
+describe("regression: v5.1.1 fixes", () => {
+    // Extract the runtime value of `_gql_source` from the emitted code by
+    // writing it to a temp .mjs file and importing. Avoids in-process eval.
+    const emittedGqlSource = async (code: string, id: string): Promise<string> => {
+        // Strip the export default and other declarations down to just the
+        // _gql_source assignment + an exported alias.
+        const match = code.match(/const _gql_source = `[\s\S]*?`;/);
+        if (!match) throw new Error("could not locate _gql_source declaration");
+        const { mkdtemp, writeFile, rm } = await import("fs/promises");
+        const { tmpdir } = await import("os");
+        const { join } = await import("path");
+        const dir = await mkdtemp(join(tmpdir(), "gql-loader-test-"));
+        const file = join(dir, `${id}.mjs`);
+        try {
+            await writeFile(file, `${match[0]}\nexport default _gql_source;\n`);
+            const mod = await import(file);
+            return mod.default as string;
+        } finally {
+            await rm(dir, { recursive: true, force: true });
+        }
+    };
+
+    it("preserves backslashes in _gql_source so loc.source.body equals input", async () => {
+        // Input contains a literal backslash followed by 'n'. Without escaping
+        // backslashes first, the emitted template literal interprets `\n` as a
+        // newline at runtime, so _gql_source becomes shorter than the input.
+        const source = `query Q($x: String = "a\\nb") { foo }`;
+        const code = await transformedCode(source, "tests/x.graphql");
+        const evaluated = await emittedGqlSource(code, "bs1");
+        expect(evaluated).toBe(source);
+        expect(evaluated.length).toBe(source.length);
+    });
+
+    it("unique-checker keeps a fragment named 'constructor' (prototype-safe lookup)", () => {
+        const defs = [
+            { kind: "FragmentDefinition", name: { kind: "Name", value: "constructor" } },
+            { kind: "FragmentDefinition", name: { kind: "Name", value: "other" } },
+        ] as unknown as DefinitionNode[];
+        const result = vitePluginGraphqlLoaderUniqueChecker(defs);
+        const names = result.map((d) => ("name" in d ? d.name?.value : null));
+        expect(names).toEqual(["constructor", "other"]);
+    });
+
+    it("unique-checker still dedupes duplicate fragment names", () => {
+        const defs = [
+            { kind: "FragmentDefinition", name: { kind: "Name", value: "Foo" } },
+            { kind: "FragmentDefinition", name: { kind: "Name", value: "Foo" } },
+            { kind: "FragmentDefinition", name: { kind: "Name", value: "Bar" } },
+        ] as unknown as DefinitionNode[];
+        const result = vitePluginGraphqlLoaderUniqueChecker(defs);
+        const names = result.map((d) => ("name" in d ? d.name?.value : null));
+        expect(names).toEqual(["Foo", "Bar"]);
+    });
+
+    it("extractQuery handles operations/fragments named 'constructor'", () => {
+        const doc = gql`
+            fragment constructor on T {
+                a
+            }
+            query Q {
+                ...constructor
+            }
+        `;
+        const out = vitePluginGraphqlLoaderExtractQuery(doc, "Q");
+        const names = out.definitions
+            .map((d) => ("name" in d && d.name ? d.name.value : null))
+            .filter((n): n is string => n !== null);
+        expect(names).toEqual(expect.arrayContaining(["Q", "constructor"]));
+    });
+
+    it.each(["_queries", "_fragments", "_gql_source", "_gql_doc"])(
+        "rejects definitions using the reserved name %s",
+        async (reserved: string) => {
+            const source = `fragment ${reserved} on T { a }\nquery Q { ...${reserved} }`;
+            await expect(callTransform(source, "tests/reserved.graphql")).rejects.toThrow(
+                /reserved/i,
+            );
+        },
+    );
 });
 
 // Traverse @babel/parser AST to find exports.

@@ -3,7 +3,7 @@ const _gql_source = `fragment TestFragment on test {
 }
 
 query TestQuery {
-    test(where: { name: { _eq: "\\\`a" } }) {
+    test(where: { name: { _eq: "\\\\\`a" } }) {
         ...TestFragment
     }
 }
@@ -46,7 +46,9 @@ const vitePluginGraphqlLoaderExtractQuery = (doc, operationName) => {
 		return refs;
 	};
 	const extractReferences = (doc) => {
-		const definitionRefs = {};
+		// `Object.create(null)` so a definition named `constructor` or
+		// `toString` doesn't collide with Object.prototype properties.
+		const definitionRefs = Object.create(null);
 		// Extract references.
 		doc.definitions.forEach(function(def) {
 			if ("name" in def && def.name) {

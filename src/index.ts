@@ -9,6 +9,10 @@ import {
 
 const DOC_NAME = "_gql_doc";
 
+// Identifiers the emitted module declares for itself; a GraphQL definition
+// whose name collides with one of these would emit a duplicate `const`.
+const RESERVED_NAMES = new Set([DOC_NAME, "_gql_source", "_queries", "_fragments"]);
+
 // Resolves GraphQL #import statements into ESM import statements.
 const expandImports = (source: string): { imports: string[]; importAppends: string[] } => {
     const lines = source.split(/\r\n|\r|\n/);
@@ -93,8 +97,25 @@ export const vitePluginGraphqlLoader = (options?: {
                 );
             }
 
-            // MagicString is used to generate the source map.
+            // Reject definitions that would collide with identifiers the
+            // emitted module declares for itself. Without this guard the
+            // emitted code would contain duplicate `const` declarations
+            // and fail to load.
+            for (const def of documentNode.definitions) {
+                if ("name" in def && def.name && RESERVED_NAMES.has(def.name.value)) {
+                    throw new Error(
+                        `vite-plugin-graphql-loader: definition "${def.name.value}" in ${id} uses a reserved identifier name (${[...RESERVED_NAMES].join(", ")})`,
+                    );
+                }
+            }
+
+            // MagicString is used to generate the source map. Order matters:
+            // escape backslashes first so the subsequent backtick and `${`
+            // escape insertions are themselves preserved verbatim in the
+            // emitted template literal (otherwise `\${` would round-trip as
+            // just `${` and re-introduce the interpolation bug).
             let outputCode = new MagicString(source)
+                .replaceAll("\\", "\\\\")
                 .replaceAll("`", "\\`")
                 .replaceAll("${", "\\${");
 

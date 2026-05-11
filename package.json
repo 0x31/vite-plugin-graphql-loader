@@ -1,6 +1,6 @@
 {
     "name": "vite-plugin-graphql-loader",
-    "version": "5.1.0",
+    "version": "5.1.1",
     "description": "A Vite plugin for loading GraphQL files.",
     "keywords": [
         "graphql",
@@ -40,8 +40,6 @@
         "lint:fix": "bun run lint --fix",
         "format": "oxfmt",
         "format:check": "oxfmt --check",
-        "package:bump": "yarn version --patch",
-        "package:publish": "bun run build && bun run package:bump && npm publish",
         "prepublishOnly": "bun run build && bun run test:run"
     },
     "dependencies": {

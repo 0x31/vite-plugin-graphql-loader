@@ -13,7 +13,10 @@ const _gql_doc = {"kind":"Document","definitions":[{"kind":"OperationDefinition"
 _gql_doc.loc.source = {"name":"GraphQL request","locationOffset":{"line":1,"column":1}};
 _gql_doc.loc.source.body = _gql_source;
 const vitePluginGraphqlLoaderUniqueChecker = (defs) => {
-	const names = {};
+	// `Object.create(null)` so property lookups don't hit Object.prototype —
+	// a fragment named `constructor` or `toString` would otherwise be falsely
+	// reported as a duplicate and dropped on its first occurrence.
+	const names = Object.create(null);
 	return defs.filter(function(def) {
 		if (def.kind !== "FragmentDefinition") return true;
 		const name = def.name.value;
@@ -56,7 +59,9 @@ const vitePluginGraphqlLoaderExtractQuery = (doc, operationName) => {
 		return refs;
 	};
 	const extractReferences = (doc) => {
-		const definitionRefs = {};
+		// `Object.create(null)` so a definition named `constructor` or
+		// `toString` doesn't collide with Object.prototype properties.
+		const definitionRefs = Object.create(null);
 		// Extract references.
 		doc.definitions.forEach(function(def) {
 			if ("name" in def && def.name) {
