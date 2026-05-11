@@ -14,8 +14,32 @@ import { PluginOption } from "vite";
 import { basename, extname, join } from "path";
 import { existsSync } from "fs";
 import { gql } from "graphql-tag";
+import { vitePluginGraphqlLoaderExtractQuery } from "../src/snippets.js";
 
 const plugin = vitePluginGraphqlLoader();
+
+const callTransform = async (source: string, id: string) => {
+    const transform = plugin.transform;
+    if (typeof transform !== "function") {
+        throw new Error("plugin.transform is not a function");
+    }
+    return transform.call(
+        {} as Parameters<typeof transform>[0] extends never ? unknown : never,
+        source,
+        id,
+    );
+};
+
+const transformedCode = async (source: string, id: string): Promise<string> => {
+    const result = await callTransform(source, id);
+    if (!result || typeof result === "string") {
+        throw new Error(`plugin returned no result for ${id}`);
+    }
+    if (typeof result.code !== "string") {
+        throw new Error(`plugin returned non-string code for ${id}`);
+    }
+    return result.code;
+};
 
 // Check that the plugin implements the PluginOption interface.
 const _: PluginOption = plugin;
@@ -107,6 +131,78 @@ describe(`vite-plugin-graphql-loader`, async () => {
             expect(exports.sort()).toEqual(expectedExports.sort());
         },
     );
+});
+
+describe("regression: v5.1.0 fixes", () => {
+    it("transforms ids with a ?query suffix (Vite emits these)", async () => {
+        const code = await transformedCode(
+            `query Foo { field }`,
+            "tests/testcases/regression.gql?used",
+        );
+        expect(code).toMatch(/export const Foo/);
+    });
+
+    it("rejects #import paths containing backticks", async () => {
+        await expect(
+            callTransform('#import "a`b.graphql"\nquery Q { field }', "tests/x.graphql"),
+        ).rejects.toThrow(/invalid #import path/);
+    });
+
+    it("rejects #import paths containing newlines", async () => {
+        await expect(
+            callTransform(
+                '#import "a\\nb.graphql"\nquery Q { field }'.replace("\\n", "\n"),
+                "tests/x.graphql",
+            ),
+        ).rejects.toThrow();
+    });
+
+    it("rejects #import paths containing backslashes", async () => {
+        await expect(
+            callTransform('#import "a\\b.graphql"\nquery Q { field }', "tests/x.graphql"),
+        ).rejects.toThrow(/invalid #import path/);
+    });
+
+    it("escapes ${ inside the emitted _gql_source template literal", async () => {
+        // Description string with a `${injected}` sequence. Inside the
+        // backtick-delimited `_gql_source` literal, `${` must be escaped or
+        // it would be evaluated as a template-literal expression at load
+        // time. (Occurrences elsewhere — e.g. inside JSON.stringify'd
+        // double-quoted JS strings — are harmless and not asserted here.)
+        const code = await transformedCode(`"\${injected}"\nquery Q { field }`, "tests/x.graphql");
+        const literal = code.match(/const _gql_source = `([\s\S]*?)`;/);
+        expect(literal).not.toBeNull();
+        expect(literal![1]).toContain("\\${injected}");
+        expect(literal![1]).not.toMatch(/(?<!\\)\$\{injected\}/);
+    });
+
+    it("emits only LF newlines (no CRLF) so source maps stay valid on Windows", async () => {
+        const code = await transformedCode(`query Q { field }`, "tests/x.graphql");
+        expect(code).not.toContain("\r");
+    });
+
+    it("extractQuery throws a clear error when the operation is not in the document", () => {
+        const doc = gql`
+            query Foo {
+                field
+            }
+        `;
+        expect(() => vitePluginGraphqlLoaderExtractQuery(doc, "Missing")).toThrow(
+            /operation "Missing" not found/,
+        );
+    });
+
+    it("wraps gql parse errors with file id and a `cause`", async () => {
+        let captured: Error | undefined;
+        try {
+            await callTransform(`{{{ this is not valid graphql`, "tests/broken.graphql");
+        } catch (error) {
+            captured = error as Error;
+        }
+        expect(captured).toBeDefined();
+        expect(captured?.message).toMatch(/tests\/broken\.graphql/);
+        expect(captured?.cause).toBeDefined();
+    });
 });
 
 // Traverse @babel/parser AST to find exports.
