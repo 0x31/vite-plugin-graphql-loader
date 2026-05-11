@@ -20,6 +20,10 @@ jobs:
               with:
                   node-version: 22.x
                   registry-url: https://registry.npmjs.org
+            # Node 22.x ships with npm 10.x. Trusted Publishing requires
+            # npm >=11.5.1 — without this upgrade the publish 404s because
+            # the CLI doesn't request an OIDC publish token.
+            - run: npm install -g npm@latest
             - run: bun install --frozen-lockfile
             - run: bun run lint
             - run: bun run format:check
