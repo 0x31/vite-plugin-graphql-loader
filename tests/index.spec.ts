@@ -1,8 +1,14 @@
 import { expect, describe, it } from "vitest";
 import { parse } from "@babel/parser";
-import traverse from "@babel/traverse";
+import * as _traverseNs from "@babel/traverse";
+// `@babel/traverse` ships a CJS module whose default export is the function;
+// under NodeNext the namespace import is the safest way to reach it.
+const traverseNs = _traverseNs as unknown as {
+    default: typeof import("@babel/traverse").default;
+};
+const traverse = traverseNs.default ?? (_traverseNs as unknown as typeof traverseNs.default);
 
-import vitePluginGraphqlLoader from "../src/index";
+import vitePluginGraphqlLoader from "../src/index.js";
 import { readFile, readdir, rm, writeFile } from "fs/promises";
 import { PluginOption } from "vite";
 import { basename, extname, join } from "path";
@@ -19,12 +25,8 @@ const TESTCASE_DIR = "tests/testcases";
 
 describe(`vite-plugin-graphql-loader`, async () => {
     // Find .gql and .graphql files in `tests/testcases`:
-    const testcases = []
-        .concat(
-            (await readdir(TESTCASE_DIR, { recursive: true })).filter(
-                (f: string) => f.endsWith(".gql") || f.endsWith(".graphql"),
-            ),
-        )
+    const testcases = (await readdir(TESTCASE_DIR, { recursive: true }))
+        .filter((f: string) => f.endsWith(".gql") || f.endsWith(".graphql"))
         .filter((testcase) => !basename(testcase).startsWith("_"));
 
     it.each(testcases)(
@@ -40,10 +42,25 @@ describe(`vite-plugin-graphql-loader`, async () => {
                 ? await readFile(expectedFilepath, "utf-8")
                 : undefined;
 
-            const { code: transformed, map } = plugin.transform(
+            // `Plugin['transform']` is `ObjectHook<...>` — either a function
+            // or `{ handler, ... }`. We know the loader uses the function form.
+            const transform = plugin.transform;
+            if (typeof transform !== "function") {
+                throw new Error(`plugin.transform is not a function`);
+            }
+            const result = await transform.call(
+                {} as Parameters<typeof transform>[0] extends never ? unknown : never,
                 fileContent,
                 `tests/testcases/${testcase}`,
             );
+            if (!result || typeof result === "string") {
+                throw new Error(`plugin returned no result for ${testcase}`);
+            }
+            const { code, map } = result;
+            if (typeof code !== "string") {
+                throw new Error(`plugin returned non-string code for ${testcase}`);
+            }
+            const transformed: string = code;
 
             if (!expected) {
                 await writeFile(expectedFilepath, transformed);

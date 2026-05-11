@@ -78,9 +78,16 @@ export const vitePluginGraphqlLoaderExtractQuery = (doc: DocumentNode, operation
 
     const definitionRefs = extractReferences(doc);
 
+    const rootOperation = findOperation(doc, operationName);
+    if (!rootOperation) {
+        throw new Error(
+            `vite-plugin-graphql-loader: operation "${operationName}" not found in document`,
+        );
+    }
+
     // Copy the DocumentNode, but clear out the definitions.
     const newDoc = Object.assign({}, doc, {
-        definitions: [findOperation(doc, operationName)],
+        definitions: [rootOperation],
     });
 
     // Now, for the operation we're running, find any fragments referenced by

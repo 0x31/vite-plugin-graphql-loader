@@ -101,6 +101,19 @@ console.log(_fragments.ExampleFragment); // Has type `FragmentDefinitionNode`
 
 ## Changelog
 
+**_v5.1.0_**:
+
+- **Security**: validate `#import` paths and reject those containing quotes, backticks, backslashes, or newlines (could otherwise inject code into the emitted ESM via a crafted path).
+- **Fix**: escape `${` in emitted template literals so GraphQL sources containing `${...}` (e.g. in comments/descriptions) no longer interpolate into the emitted code.
+- **Fix**: emit LF newlines so source maps remain accurate on Windows (the previous `os.EOL` replace happened after MagicString computed its byte offsets, desyncing the sourcemap on CRLF systems).
+- **Fix**: match `.gql` / `.graphql` IDs with `?query` suffixes (Vite emits these for some module-graph operations).
+- **Fix**: `extractQuery` now throws a clear error when the named operation is not in the document (previously produced `definitions: [undefined]`).
+- **Fix**: `loc.source` is now reattached via separate emitted statements rather than UUID-placeholder string replacement (no collision risk if a GraphQL source happened to contain the sentinel).
+- Annotate the plugin's return type as Vite's `Plugin` for consumer DX.
+- Add `prepublishOnly` script (`build && test:run`), `engines.node` (`^20.19.0 || >=22.12.0`).
+- Flatten dist layout: `dist/index.js` (was `dist/src/index.js`). Exports field updated — no consumer-facing change via the package entrypoint.
+- CI on GitHub Actions (lint, typecheck, tests, build, integration test), tag-triggered release with npm provenance via Trusted Publishing and auto-generated GitHub Releases.
+
 **_v5.0.0_**:
 
 - **Breaking:** `graphql` is now a peer dependency. If you don't already have it installed, run `npm i graphql`.

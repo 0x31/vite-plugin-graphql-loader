@@ -5,7 +5,8 @@
         "declarationMap": true,
         "declaration": true,
         "sourceMap": true,
-        "outDir": "dist"
+        "outDir": "dist",
+        "rootDir": "src"
     },
     "exclude": ["node_modules", "dist", "tests", "vitest.config.ts", "integration-test", "test-app"]
 }

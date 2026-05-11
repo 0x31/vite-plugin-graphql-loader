@@ -1,11 +1,11 @@
-import { EOL } from "os";
+import { DocumentNode } from "graphql";
 import { gql } from "graphql-tag";
 import MagicString, { SourceMap, SourceMapOptions } from "magic-string";
+import type { Plugin } from "vite";
 import {
     vitePluginGraphqlLoaderUniqueChecker,
     vitePluginGraphqlLoaderExtractQuery,
 } from "./snippets.js";
-import { DocumentNode } from "graphql";
 
 const DOC_NAME = "_gql_doc";
 
@@ -24,7 +24,21 @@ const expandImports = (source: string): { imports: string[]; importAppends: stri
 
         // If it's an import, replace it with an ESM import.
         if (result) {
-            let [_, importFile] = result;
+            let importFile = result[1].trim();
+
+            // Strip any surrounding quotes so we can re-quote safely below.
+            const quoted = importFile.match(/^"(.*)"$/) || importFile.match(/^'(.*)'$/);
+            if (quoted) {
+                importFile = quoted[1];
+            }
+
+            // Reject paths containing characters that would break the emitted
+            // ESM import statement.
+            if (/["'`\\\n\r]/.test(importFile)) {
+                throw new Error(
+                    `vite-plugin-graphql-loader: invalid #import path ${JSON.stringify(importFile)}`,
+                );
+            }
 
             // Generate name for the import based on the filepath.
             let importName = "Import_" + importFile.replace(/[^a-z0-9]/gi, "_");
@@ -34,11 +48,7 @@ const expandImports = (source: string): { imports: string[]; importAppends: stri
             }
             importNames.add(importName);
 
-            if (!importFile.match(/^".*"$/) && !importFile.match(/^'.*'$/)) {
-                importFile = `"${importFile}"`;
-            }
-
-            imports.push(`import ${importName} from ${importFile};\n`);
+            imports.push(`import ${importName} from ${JSON.stringify(importFile)};\n`);
             importAppends.push(
                 `${DOC_NAME}.definitions = ${vitePluginGraphqlLoaderUniqueChecker.name}(${DOC_NAME}.definitions.concat(${importName}.definitions));\n`,
             );
@@ -55,9 +65,9 @@ const expandImports = (source: string): { imports: string[]; importAppends: stri
 export const vitePluginGraphqlLoader = (options?: {
     noSourceMap?: boolean;
     sourceMapOptions?: SourceMapOptions;
-}) => {
+}): Plugin => {
     // RegEx to match GraphQL file extensions.
-    const graphqlRegex = /\.(?:gql|graphql)$/;
+    const graphqlRegex = /\.(?:gql|graphql)(?:\?.*)?$/;
 
     return {
         name: "graphql-loader",
@@ -77,42 +87,43 @@ export const vitePluginGraphqlLoader = (options?: {
                     ${source}
                 `;
             } catch (error) {
-                // graphql-tag error thrown from vite-plugin-graphql-loader:
-                throw new Error(String(error));
+                throw new Error(
+                    `vite-plugin-graphql-loader: failed to parse ${id}: ${error instanceof Error ? error.message : String(error)}`,
+                    { cause: error },
+                );
             }
 
             // MagicString is used to generate the source map.
-            let outputCode = new MagicString(source).replaceAll("`", "\\`");
+            let outputCode = new MagicString(source)
+                .replaceAll("`", "\\`")
+                .replaceAll("${", "\\${");
 
             outputCode.prepend(`const _gql_source = \``);
             // ORIGINAL SOURCE CODE ENDS UP BETWEEN THESE TWO LINES, AS A JS
             // STRING.
             outputCode.append(`\`;\n`);
 
-            const plainDocument = Object.assign({}, documentNode);
-            Object.assign(plainDocument.loc!, documentNode.loc);
-
-            // Convert document node to plain object.
+            // Convert document node to plain object. Strip the top-level
+            // `loc.source` so we can re-attach it in emitted code with `body`
+            // pointing at the source-mapped `_gql_source` constant. Doing this
+            // via post-stringify string replacement would be fragile if the
+            // user's GraphQL source happened to contain the sentinel.
             const documentObject = JSON.parse(JSON.stringify(documentNode));
-
-            const sourceBodyIdentifier = `_gql_uuid_${new Date().getTime()}`;
-            if (documentNode.loc && documentNode.loc.source) {
-                // In order to set `loc.source.body` to _gql_source, we replace
-                // it with a temporary identifier and then replace it with a
-                // reference to _gql_source, which is the source-mapped version.
-                documentObject.loc.source = {
-                    name: documentNode.loc.source.name,
-                    locationOffset: documentNode.loc.source.locationOffset,
-                    body: sourceBodyIdentifier,
-                };
+            const topLoc = documentNode.loc;
+            if (documentObject.loc) {
+                delete documentObject.loc.source;
             }
 
-            outputCode.append(
-                `const ${DOC_NAME} = ${JSON.stringify(documentObject).replace(
-                    `"${sourceBodyIdentifier}"`,
-                    "_gql_source",
-                )};\n`,
-            );
+            outputCode.append(`const ${DOC_NAME} = ${JSON.stringify(documentObject)};\n`);
+            if (topLoc && topLoc.source) {
+                outputCode.append(
+                    `${DOC_NAME}.loc.source = ${JSON.stringify({
+                        name: topLoc.source.name,
+                        locationOffset: topLoc.source.locationOffset,
+                    })};\n`,
+                );
+                outputCode.append(`${DOC_NAME}.loc.source.body = _gql_source;\n`);
+            }
 
             // Resolve #import statements.
             const { imports, importAppends } = expandImports(source);
@@ -174,8 +185,6 @@ export const vitePluginGraphqlLoader = (options?: {
             outputCode.append(`export const _fragments = {${fragmentNames.join(",")}};\n`);
 
             outputCode.append(`export default ${DOC_NAME};\n`);
-
-            outputCode.replaceAll("\n", EOL);
 
             return {
                 code: outputCode.toString(),
