@@ -1,5 +1,5 @@
 # Test files
-tests/*-actual.js
+tests/**/*-actual.js
 
 # Build output
 dist/

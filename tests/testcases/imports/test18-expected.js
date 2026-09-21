@@ -1,15 +1,18 @@
-import Import___test1_gql from "./test1.gql";
-import Import___test1_gql_ from "./test1.gql";
-const _gql_source = `#import "./test1.gql"
-#import "./test1.gql"
+import Import____fragment__gql from "./_fragment_.gql";
+import Import____fragment__gql_ from "./_fragment-.gql";
+const _gql_source = `#import "./_fragment_.gql"
+#import "./_fragment-.gql"
 
-query TestQuery {
-    test(where: { name: { _eq: "test" } }) {
-        ...TestFragment
+# Both files declare Frag1, so the dedup in the emitted module has to keep
+# exactly one copy. Uses "./"-prefixed paths so the emitted ESM import
+# resolves at runtime, not just at transform time.
+query ImportingQuery {
+    test {
+        ...Frag1
     }
 }
 `;
-const _gql_doc = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"TestQuery"},"variableDefinitions":[],"directives":[],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"test"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"name"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"StringValue","value":"test","block":false}}]}}]}}],"directives":[],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"TestFragment"},"directives":[]}]}}]}}],"loc":{"start":0,"end":140}};
+const _gql_doc = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"ImportingQuery"},"variableDefinitions":[],"directives":[],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"test"},"arguments":[],"directives":[],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"Frag1"},"directives":[]}]}}]}}],"loc":{"start":0,"end":311}};
 _gql_doc.loc.source = {"name":"GraphQL request","locationOffset":{"line":1,"column":1}};
 _gql_doc.loc.source.body = _gql_source;
 const graphqlLoaderUniqueChecker = (defs) => {
@@ -28,8 +31,8 @@ const graphqlLoaderUniqueChecker = (defs) => {
 		}
 	});
 };
-_gql_doc.definitions = graphqlLoaderUniqueChecker(_gql_doc.definitions.concat(Import___test1_gql.definitions));
-_gql_doc.definitions = graphqlLoaderUniqueChecker(_gql_doc.definitions.concat(Import___test1_gql_.definitions));
+_gql_doc.definitions = graphqlLoaderUniqueChecker(_gql_doc.definitions.concat(Import____fragment__gql.definitions));
+_gql_doc.definitions = graphqlLoaderUniqueChecker(_gql_doc.definitions.concat(Import____fragment__gql_.definitions));
 const graphqlLoaderExtractQuery = (doc, operationName) => {
 	// Recursively navigate node tree to find references to fragments.
 	const collectFragmentReferences = (node, refs) => {
@@ -114,7 +117,7 @@ const graphqlLoaderExtractQuery = (doc, operationName) => {
 	});
 	return newDoc;
 };
-export const TestQuery = graphqlLoaderExtractQuery(_gql_doc, "TestQuery");
-export const _queries = {TestQuery};
+export const ImportingQuery = graphqlLoaderExtractQuery(_gql_doc, "ImportingQuery");
+export const _queries = {ImportingQuery};
 export const _fragments = {};
 export default _gql_doc;

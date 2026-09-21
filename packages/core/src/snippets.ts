@@ -12,7 +12,7 @@ import type { ASTNode, DefinitionNode, DocumentNode } from "graphql";
 // Source: https://github.com/apollographql/graphql-tag/blob/main/loader.js
 // License: MIT (https://github.com/apollographql/graphql-tag/blob/main/LICENSE)
 
-export const vitePluginGraphqlLoaderUniqueChecker = (defs: DefinitionNode[]) => {
+export const graphqlLoaderUniqueChecker = (defs: DefinitionNode[]) => {
     // `Object.create(null)` so property lookups don't hit Object.prototype —
     // a fragment named `constructor` or `toString` would otherwise be falsely
     // reported as a duplicate and dropped on its first occurrence.
@@ -29,7 +29,7 @@ export const vitePluginGraphqlLoaderUniqueChecker = (defs: DefinitionNode[]) => 
     });
 };
 
-export const vitePluginGraphqlLoaderExtractQuery = (doc: DocumentNode, operationName: string) => {
+export const graphqlLoaderExtractQuery = (doc: DocumentNode, operationName: string) => {
     // Recursively navigate node tree to find references to fragments.
     const collectFragmentReferences = (node: ASTNode, refs: Set<string>) => {
         if (node.kind === "FragmentSpread") {
@@ -85,9 +85,7 @@ export const vitePluginGraphqlLoaderExtractQuery = (doc: DocumentNode, operation
 
     const rootOperation = findOperation(doc, operationName);
     if (!rootOperation) {
-        throw new Error(
-            `vite-plugin-graphql-loader: operation "${operationName}" not found in document`,
-        );
+        throw new Error(`graphql-loader: operation "${operationName}" not found in document`);
     }
 
     // Copy the DocumentNode, but clear out the definitions.

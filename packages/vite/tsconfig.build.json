@@ -1,0 +1,15 @@
+{
+    "extends": "../../tsconfig.json",
+    "compilerOptions": {
+        "removeComments": true,
+        "declarationMap": true,
+        "declaration": true,
+        "sourceMap": true,
+        "outDir": "dist",
+        // Core is compiled into this package rather than published separately,
+        // so the rootDir spans both and output lands under dist/<package>/src.
+        "rootDir": "..",
+        "types": ["node"]
+    },
+    "include": ["src/**/*", "../core/src/**/*"]
+}

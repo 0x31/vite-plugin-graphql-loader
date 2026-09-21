@@ -8,16 +8,16 @@ const traverseNs = _traverseNs as unknown as {
 };
 const traverse = traverseNs.default ?? (_traverseNs as unknown as typeof traverseNs.default);
 
-import vitePluginGraphqlLoader from "../src/index.js";
+import vitePluginGraphqlLoader from "../packages/vite/src/index.js";
 import { readFile, readdir, rm, writeFile } from "fs/promises";
 import { PluginOption } from "vite";
 import { basename, extname, join } from "path";
 import { existsSync } from "fs";
 import { parse as parseGraphql } from "graphql";
 import {
-    vitePluginGraphqlLoaderExtractQuery,
-    vitePluginGraphqlLoaderUniqueChecker,
-} from "../src/snippets.js";
+    graphqlLoaderExtractQuery,
+    graphqlLoaderUniqueChecker,
+} from "../packages/core/src/snippets.js";
 import type { DefinitionNode } from "graphql";
 
 const plugin = vitePluginGraphqlLoader();
@@ -228,7 +228,7 @@ describe("regression: v5.1.0 fixes", () => {
                 field
             }
         `);
-        expect(() => vitePluginGraphqlLoaderExtractQuery(doc, "Missing")).toThrow(
+        expect(() => graphqlLoaderExtractQuery(doc, "Missing")).toThrow(
             /operation "Missing" not found/,
         );
     });
@@ -306,7 +306,7 @@ describe("regression: v5.1.1 fixes", () => {
             { kind: "FragmentDefinition", name: { kind: "Name", value: "constructor" } },
             { kind: "FragmentDefinition", name: { kind: "Name", value: "other" } },
         ] as unknown as DefinitionNode[];
-        const result = vitePluginGraphqlLoaderUniqueChecker(defs);
+        const result = graphqlLoaderUniqueChecker(defs);
         const names = result.map((d) => ("name" in d ? d.name?.value : null));
         expect(names).toEqual(["constructor", "other"]);
     });
@@ -317,7 +317,7 @@ describe("regression: v5.1.1 fixes", () => {
             { kind: "FragmentDefinition", name: { kind: "Name", value: "Foo" } },
             { kind: "FragmentDefinition", name: { kind: "Name", value: "Bar" } },
         ] as unknown as DefinitionNode[];
-        const result = vitePluginGraphqlLoaderUniqueChecker(defs);
+        const result = graphqlLoaderUniqueChecker(defs);
         const names = result.map((d) => ("name" in d ? d.name?.value : null));
         expect(names).toEqual(["Foo", "Bar"]);
     });
@@ -331,7 +331,7 @@ describe("regression: v5.1.1 fixes", () => {
                 ...constructor
             }
         `);
-        const out = vitePluginGraphqlLoaderExtractQuery(doc, "Q");
+        const out = graphqlLoaderExtractQuery(doc, "Q");
         const names = out.definitions
             .map((d) => ("name" in d && d.name ? d.name.value : null))
             .filter((n): n is string => n !== null);

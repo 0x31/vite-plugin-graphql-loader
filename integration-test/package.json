@@ -10,6 +10,6 @@
         "graphql": "^16.13.1 || ^17.0.0",
         "typescript": "^5.9.3",
         "vite": "^8.0.0",
-        "vite-plugin-graphql-loader": "file:.."
+        "vite-plugin-graphql-loader": "file:../packages/vite"
     }
 }

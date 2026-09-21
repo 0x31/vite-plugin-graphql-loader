@@ -3,7 +3,10 @@ name: Release
 on:
     push:
         tags:
-            - "v*"
+            # One package per tag: `vite-v5.3.0` publishes packages/vite,
+            # `bun-v2.0.0` publishes packages/bun.
+            - "vite-v*"
+            - "bun-v*"
 
 jobs:
     release:
@@ -20,6 +23,14 @@ jobs:
               with:
                   node-version: 24.x
                   registry-url: https://registry.npmjs.org
+            - name: Resolve package directory from tag
+              id: target
+              run: |
+                  case "$GITHUB_REF_NAME" in
+                      vite-v*) echo "dir=packages/vite" >> "$GITHUB_OUTPUT" ;;
+                      bun-v*)  echo "dir=packages/bun"  >> "$GITHUB_OUTPUT" ;;
+                      *) echo "Unrecognized tag $GITHUB_REF_NAME" >&2; exit 1 ;;
+                  esac
             - run: bun install --frozen-lockfile
             - run: bun run lint
             - run: bun run format:check
@@ -32,8 +43,10 @@ jobs:
                   bun install --no-frozen-lockfile
                   bun run test
             # Auth + signing both come from the GitHub Actions OIDC identity.
-            # Requires Trusted Publishing to be configured for this package on npmjs.com.
+            # Requires Trusted Publishing to be configured on npmjs.com for
+            # whichever package this tag targets.
             - run: npm publish --provenance --access public
+              working-directory: ${{ steps.target.outputs.dir }}
             - name: Create GitHub Release
               env:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -16,7 +16,7 @@ query TestQuery2 {
 const _gql_doc = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"TestQuery"},"variableDefinitions":[],"directives":[],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"test"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"name"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"StringValue","value":"test","block":false}}]}}]}}],"directives":[],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"TestFragment"},"directives":[]}]}}]}},{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"TestQuery2"},"variableDefinitions":[],"directives":[],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"test"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"name"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"StringValue","value":"test","block":false}}]}}]}}],"directives":[],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"TestFragment"},"directives":[]}]}}]}}],"loc":{"start":0,"end":215}};
 _gql_doc.loc.source = {"name":"GraphQL request","locationOffset":{"line":1,"column":1}};
 _gql_doc.loc.source.body = _gql_source;
-const vitePluginGraphqlLoaderUniqueChecker = (defs) => {
+const graphqlLoaderUniqueChecker = (defs) => {
 	// `Object.create(null)` so property lookups don't hit Object.prototype —
 	// a fragment named `constructor` or `toString` would otherwise be falsely
 	// reported as a duplicate and dropped on its first occurrence.
@@ -32,8 +32,8 @@ const vitePluginGraphqlLoaderUniqueChecker = (defs) => {
 		}
 	});
 };
-_gql_doc.definitions = vitePluginGraphqlLoaderUniqueChecker(_gql_doc.definitions.concat(Import___test1_gql.definitions));
-const vitePluginGraphqlLoaderExtractQuery = (doc, operationName) => {
+_gql_doc.definitions = graphqlLoaderUniqueChecker(_gql_doc.definitions.concat(Import___test1_gql.definitions));
+const graphqlLoaderExtractQuery = (doc, operationName) => {
 	// Recursively navigate node tree to find references to fragments.
 	const collectFragmentReferences = (node, refs) => {
 		if (node.kind === "FragmentSpread") {
@@ -84,7 +84,7 @@ const vitePluginGraphqlLoaderExtractQuery = (doc, operationName) => {
 	const definitionRefs = extractReferences(doc);
 	const rootOperation = findOperation(doc, operationName);
 	if (!rootOperation) {
-		throw new Error(`vite-plugin-graphql-loader: operation "${operationName}" not found in document`);
+		throw new Error(`graphql-loader: operation "${operationName}" not found in document`);
 	};
 	// Copy the DocumentNode, but clear out the definitions.
 	const newDoc = Object.assign({}, doc, { definitions: [rootOperation] });
@@ -117,8 +117,8 @@ const vitePluginGraphqlLoaderExtractQuery = (doc, operationName) => {
 	});
 	return newDoc;
 };
-export const TestQuery = vitePluginGraphqlLoaderExtractQuery(_gql_doc, "TestQuery");
-export const TestQuery2 = vitePluginGraphqlLoaderExtractQuery(_gql_doc, "TestQuery2");
+export const TestQuery = graphqlLoaderExtractQuery(_gql_doc, "TestQuery");
+export const TestQuery2 = graphqlLoaderExtractQuery(_gql_doc, "TestQuery2");
 export const _queries = {TestQuery,TestQuery2};
 export const _fragments = {};
 export default _gql_doc;

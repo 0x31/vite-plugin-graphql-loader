@@ -13,7 +13,7 @@ query {
 const _gql_doc = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","variableDefinitions":[],"directives":[],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"test"},"arguments":[],"directives":[],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"Frag1"},"directives":[]}]}}]}}],"loc":{"start":0,"end":136}};
 _gql_doc.loc.source = {"name":"GraphQL request","locationOffset":{"line":1,"column":1}};
 _gql_doc.loc.source.body = _gql_source;
-const vitePluginGraphqlLoaderUniqueChecker = (defs) => {
+const graphqlLoaderUniqueChecker = (defs) => {
 	// `Object.create(null)` so property lookups don't hit Object.prototype —
 	// a fragment named `constructor` or `toString` would otherwise be falsely
 	// reported as a duplicate and dropped on its first occurrence.
@@ -29,8 +29,8 @@ const vitePluginGraphqlLoaderUniqueChecker = (defs) => {
 		}
 	});
 };
-_gql_doc.definitions = vitePluginGraphqlLoaderUniqueChecker(_gql_doc.definitions.concat(Import__fragment__gql.definitions));
-_gql_doc.definitions = vitePluginGraphqlLoaderUniqueChecker(_gql_doc.definitions.concat(Import__fragment__gql_.definitions));
+_gql_doc.definitions = graphqlLoaderUniqueChecker(_gql_doc.definitions.concat(Import__fragment__gql.definitions));
+_gql_doc.definitions = graphqlLoaderUniqueChecker(_gql_doc.definitions.concat(Import__fragment__gql_.definitions));
 export const _queries = {};
 export const _fragments = {};
 export default _gql_doc;

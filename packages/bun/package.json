@@ -1,0 +1,49 @@
+{
+    "name": "bun-graphql-loader",
+    "version": "2.0.0",
+    "description": "A Bun plugin for loading GraphQL files.",
+    "keywords": [
+        "bun",
+        "bun-plugin",
+        "graphql"
+    ],
+    "homepage": "https://github.com/0x31/vite-plugin-graphql-loader#readme",
+    "bugs": {
+        "url": "https://github.com/0x31/vite-plugin-graphql-loader/issues"
+    },
+    "license": "ISC",
+    "author": "0x31",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/0x31/vite-plugin-graphql-loader.git",
+        "directory": "packages/bun"
+    },
+    "files": [
+        "dist",
+        "package.json",
+        "README.md",
+        "LICENSE.txt"
+    ],
+    "type": "module",
+    "main": "dist/bun/src/index.js",
+    "types": "dist/bun/src/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/bun/src/index.d.ts",
+            "import": "./dist/bun/src/index.js"
+        }
+    },
+    "scripts": {
+        "build": "rimraf ./dist && tsgo --project tsconfig.build.json",
+        "prepublishOnly": "bun run build"
+    },
+    "dependencies": {
+        "magic-string": "^0.30.21"
+    },
+    "peerDependencies": {
+        "graphql": "^16.0.0 || ^17.0.0"
+    },
+    "engines": {
+        "bun": ">=1.1.0"
+    }
+}

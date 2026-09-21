@@ -1,0 +1,11 @@
+#import "./_fragment_.gql"
+#import "./_fragment-.gql"
+
+# Both files declare Frag1, so the dedup in the emitted module has to keep
+# exactly one copy. Uses "./"-prefixed paths so the emitted ESM import
+# resolves at runtime, not just at transform time.
+query ImportingQuery {
+    test {
+        ...Frag1
+    }
+}
