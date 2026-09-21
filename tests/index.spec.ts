@@ -13,7 +13,7 @@ import { readFile, readdir, rm, writeFile } from "fs/promises";
 import { PluginOption } from "vite";
 import { basename, extname, join } from "path";
 import { existsSync } from "fs";
-import { gql } from "graphql-tag";
+import { parse as parseGraphql } from "graphql";
 import {
     vitePluginGraphqlLoaderExtractQuery,
     vitePluginGraphqlLoaderUniqueChecker,
@@ -157,7 +157,7 @@ describe(`vite-plugin-graphql-loader`, async () => {
             // Validate that the exports match the queries and fragments in the
             // GraphQL file.
             const exports = getExports(ast);
-            const { definitions } = gql(fileContent);
+            const { definitions } = parseGraphql(fileContent);
             const expectedExports = [
                 "_queries",
                 "_fragments",
@@ -223,11 +223,11 @@ describe("regression: v5.1.0 fixes", () => {
     });
 
     it("extractQuery throws a clear error when the operation is not in the document", () => {
-        const doc = gql`
+        const doc = parseGraphql(`
             query Foo {
                 field
             }
-        `;
+        `);
         expect(() => vitePluginGraphqlLoaderExtractQuery(doc, "Missing")).toThrow(
             /operation "Missing" not found/,
         );
@@ -243,6 +243,28 @@ describe("regression: v5.1.0 fixes", () => {
         expect(captured).toBeDefined();
         expect(captured?.message).toMatch(/tests\/broken\.graphql/);
         expect(captured?.cause).toBeDefined();
+    });
+});
+
+describe("regression: emitted source locations", () => {
+    it("emits loc offsets that match the source body", async () => {
+        const source = `query Q {\n    field\n}\n`;
+        const code = await transformedCode(source, "tests/loc.graphql");
+        const loc = code.match(/"loc":\{"start":(\d+),"end":(\d+)\}/);
+        expect(loc).not.toBeNull();
+        expect(Number(loc![1])).toBe(0);
+        // `loc.source.body` is the raw source, so `loc.end` has to be its
+        // length.
+        expect(Number(loc![2])).toBe(source.length);
+    });
+
+    it("slices the operation out of loc.source.body using its own loc", async () => {
+        const source = `fragment F on T {\n    a\n}\n\nquery Q {\n    ...F\n}\n`;
+        const doc = parseGraphql(source);
+        const operation = doc.definitions.find((def) => "name" in def && def.name?.value === "Q");
+        expect(operation?.loc).toBeDefined();
+        const sliced = source.slice(operation!.loc!.start, operation!.loc!.end);
+        expect(sliced).toBe(`query Q {\n    ...F\n}`);
     });
 });
 
@@ -301,14 +323,14 @@ describe("regression: v5.1.1 fixes", () => {
     });
 
     it("extractQuery handles operations/fragments named 'constructor'", () => {
-        const doc = gql`
+        const doc = parseGraphql(`
             fragment constructor on T {
                 a
             }
             query Q {
                 ...constructor
             }
-        `;
+        `);
         const out = vitePluginGraphqlLoaderExtractQuery(doc, "Q");
         const names = out.definitions
             .map((d) => ("name" in d && d.name ? d.name.value : null))

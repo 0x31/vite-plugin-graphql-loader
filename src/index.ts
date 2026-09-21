@@ -1,5 +1,4 @@
-import { DocumentNode } from "graphql";
-import { gql } from "graphql-tag";
+import { DocumentNode, parse } from "graphql";
 import MagicString, { SourceMap, SourceMapOptions } from "magic-string";
 import type { Plugin } from "vite";
 import {
@@ -12,6 +11,21 @@ const DOC_NAME = "_gql_doc";
 // Identifiers the emitted module declares for itself; a GraphQL definition
 // whose name collides with one of these would emit a duplicate `const`.
 const RESERVED_NAMES = new Set([DOC_NAME, "_gql_source", "_queries", "_fragments"]);
+
+// Drop `loc` from every node below the document root. Keeping them would
+// roughly double the size of the emitted document for no benefit, and it
+// matches the shape `graphql-tag` produced before this loader parsed directly.
+const stripNestedLoc = (value: unknown): void => {
+    if (Array.isArray(value)) {
+        value.forEach(stripNestedLoc);
+        return;
+    }
+    if (value && typeof value === "object") {
+        const node = value as Record<string, unknown>;
+        delete node.loc;
+        Object.values(node).forEach(stripNestedLoc);
+    }
+};
 
 // Resolves GraphQL #import statements into ESM import statements.
 const expandImports = (source: string): { imports: string[]; importAppends: string[] } => {
@@ -87,9 +101,12 @@ export const vitePluginGraphqlLoader = (options?: {
 
             let documentNode: DocumentNode;
             try {
-                documentNode = gql`
-                    ${source}
-                `;
+                // Parse via `graphql` rather than `graphql-tag`. `gql` caches
+                // documents keyed by whitespace-normalized source, so two files
+                // differing only in whitespace would share one DocumentNode and
+                // inherit each other's `loc` offsets, which no longer match the
+                // `loc.source.body` emitted alongside them.
+                documentNode = parse(source);
             } catch (error) {
                 throw new Error(
                     `vite-plugin-graphql-loader: failed to parse ${id}: ${error instanceof Error ? error.message : String(error)}`,
@@ -131,6 +148,7 @@ export const vitePluginGraphqlLoader = (options?: {
             // user's GraphQL source happened to contain the sentinel.
             const documentObject = JSON.parse(JSON.stringify(documentNode));
             const topLoc = documentNode.loc;
+            stripNestedLoc(documentObject.definitions);
             if (documentObject.loc) {
                 delete documentObject.loc.source;
             }

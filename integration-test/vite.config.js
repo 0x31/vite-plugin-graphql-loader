@@ -11,7 +11,7 @@ export default defineConfig({
         },
         outDir: "dist",
         rollupOptions: {
-            external: ["graphql-tag"],
+            external: ["graphql"],
         },
     },
 });

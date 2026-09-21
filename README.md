@@ -111,8 +111,10 @@ console.log(_fragments.ExampleFragment); // Has type `FragmentDefinitionNode`
 
 **_v5.2.0_**:
 
-- Support GraphQL 17 (fixes #13). The `graphql` peer range is now `^16.0.0 || ^17.0.0` and `graphql-tag` is bumped to `^2.12.7`, the first release declaring GraphQL 17 support.
+- Support GraphQL 17 (fixes #13). The `graphql` peer range is now `^16.0.0 || ^17.0.0`.
 - CI runs the full suite against both GraphQL majors. Node 20 is tested against GraphQL 16 only, since GraphQL 17 requires Node 22+.
+- **Fix**: emitted `loc.start`/`loc.end` now match `loc.source.body`. Two bugs combined to make every offset wrong: the document was parsed through a tagged template literal, so this file's own indentation was counted into the document, and `graphql-tag` caches parsed documents keyed by whitespace-normalized source, so two `.graphql` files differing only in whitespace shared one `DocumentNode` and inherited each other's offsets.
+- **Breaking (internal)**: `graphql-tag` is no longer a dependency. The loader parses with `parse` from the `graphql` peer, which has no document cache, and strips definition-level `loc` to keep the emitted document the same size as before. Emitted modules are unchanged apart from the corrected offsets.
 
 **_v5.1.1_**:
 
