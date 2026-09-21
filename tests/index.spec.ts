@@ -48,6 +48,40 @@ const transformedCode = async (source: string, id: string): Promise<string> => {
 // Check that the plugin implements the PluginOption interface.
 const _: PluginOption = plugin;
 
+// GraphQL 16 fills in empty `directives`/`arguments`/`variableDefinitions`
+// arrays that GraphQL 17 leaves out entirely. Both shapes are valid documents,
+// so strip them from the emitted `_gql_doc` before comparing against the
+// golden files, letting one fixture set cover both majors.
+const OPTIONAL_EMPTY_KEYS = new Set(["directives", "arguments", "variableDefinitions"]);
+
+const stripEmptyAstArrays = (value: unknown): unknown => {
+    if (Array.isArray(value)) {
+        return value.map(stripEmptyAstArrays);
+    }
+    if (value && typeof value === "object") {
+        return Object.fromEntries(
+            Object.entries(value)
+                .filter(
+                    ([key, child]) =>
+                        !(
+                            OPTIONAL_EMPTY_KEYS.has(key) &&
+                            Array.isArray(child) &&
+                            child.length === 0
+                        ),
+                )
+                .map(([key, child]) => [key, stripEmptyAstArrays(child)]),
+        );
+    }
+    return value;
+};
+
+const normalizeDocument = (code: string): string =>
+    code.replace(
+        /^const _gql_doc = (\{.*\});$/m,
+        (_match, json: string) =>
+            `const _gql_doc = ${JSON.stringify(stripEmptyAstArrays(JSON.parse(json)))};`,
+    );
+
 // Any .gql or .graphql files in the testcase directory are tested.
 const TESTCASE_DIR = "tests/testcases";
 
@@ -101,8 +135,11 @@ describe(`vite-plugin-graphql-loader`, async () => {
                 testcase.replace(extname(testcase), "-actual.js"),
             );
 
+            const normalized = normalizeDocument(transformed);
+            const normalizedExpected = expected ? normalizeDocument(expected) : undefined;
+
             // Just to allow manual comparison.
-            if (expected !== transformed) {
+            if (normalizedExpected !== normalized) {
                 await writeFile(actualFilepath, transformed);
             } else {
                 if (existsSync(actualFilepath)) {
@@ -110,7 +147,7 @@ describe(`vite-plugin-graphql-loader`, async () => {
                 }
             }
 
-            expect(transformed).toBe(expected);
+            expect(normalized).toBe(normalizedExpected);
             expect(map).toBeDefined();
 
             // Validate that the generated code is valid ESM JavaScript.

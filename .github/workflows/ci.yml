@@ -9,9 +9,17 @@ on:
 jobs:
     test:
         runs-on: ubuntu-latest
+        name: node ${{ matrix.node-version }} / graphql ${{ matrix.graphql-version }}
         strategy:
+            fail-fast: false
             matrix:
                 node-version: [20.x, 22.x, 24.x]
+                graphql-version: [16, 17]
+                exclude:
+                    # GraphQL 17 requires Node 22+. Node 20 stays covered by the
+                    # GraphQL 16 leg, which is what Node 20 users can install.
+                    - node-version: 20.x
+                      graphql-version: 17
         steps:
             - uses: actions/checkout@v4
             - uses: oven-sh/setup-bun@v2
@@ -21,6 +29,8 @@ jobs:
               with:
                   node-version: ${{ matrix.node-version }}
             - run: bun install --frozen-lockfile
+            - name: Pin graphql to the matrix version
+              run: bun add --dev graphql@${{ matrix.graphql-version }}
             - run: bun run lint
             - run: bun run format:check
             - run: bun run typecheck
@@ -28,6 +38,9 @@ jobs:
             - run: bun run build
             - name: Integration test
               working-directory: integration-test
+              # `bun add` must come before the install: running it against an
+              # existing node_modules breaks the `file:..` link to the plugin.
               run: |
+                  bun add graphql@${{ matrix.graphql-version }}
                   bun install --no-frozen-lockfile
                   bun run test

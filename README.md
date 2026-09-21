@@ -23,6 +23,14 @@ or
 npm i --save-dev vite-plugin-graphql-loader graphql
 ```
 
+### Compatibility
+
+| Peer      | Supported                                                     |
+| --------- | ------------------------------------------------------------- |
+| `graphql` | 16.x, 17.x                                                    |
+| `vite`    | 5.x, 6.x, 7.x, 8.x                                            |
+| Node      | ^20.19.0 \|\| >=22.12.0 (GraphQL 17 itself requires Node 22+) |
+
 ## Usage
 
 In `vite.config.ts` or `vite.config.js`:
@@ -100,6 +108,11 @@ console.log(_fragments.ExampleFragment); // Has type `FragmentDefinitionNode`
 ```
 
 ## Changelog
+
+**_v5.2.0_**:
+
+- Support GraphQL 17 (fixes #13). The `graphql` peer range is now `^16.0.0 || ^17.0.0` and `graphql-tag` is bumped to `^2.12.7`, the first release declaring GraphQL 17 support.
+- CI runs the full suite against both GraphQL majors. Node 20 is tested against GraphQL 16 only, since GraphQL 17 requires Node 22+.
 
 **_v5.1.1_**:
 
