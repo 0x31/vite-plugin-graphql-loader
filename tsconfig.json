@@ -6,5 +6,5 @@
         "noImplicitAny": false,
         "types": ["node"]
     },
-    "exclude": ["node_modules", "dist", "integration-test", "test-app"]
+    "exclude": ["node_modules", "**/dist", "integration-test"]
 }
