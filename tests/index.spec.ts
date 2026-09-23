@@ -1,12 +1,6 @@
 import { expect, describe, it } from "vitest";
 import { parse } from "@babel/parser";
-import * as _traverseNs from "@babel/traverse";
-// `@babel/traverse` ships a CJS module whose default export is the function;
-// under NodeNext the namespace import is the safest way to reach it.
-const traverseNs = _traverseNs as unknown as {
-    default: typeof import("@babel/traverse").default;
-};
-const traverse = traverseNs.default ?? (_traverseNs as unknown as typeof traverseNs.default);
+import traverse from "@babel/traverse";
 
 import vitePluginGraphqlLoader from "../packages/vite/src/index.js";
 import { readFile, readdir, rm, writeFile } from "fs/promises";

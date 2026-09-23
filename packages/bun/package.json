@@ -38,7 +38,7 @@
         "prepublishOnly": "bun run build"
     },
     "dependencies": {
-        "magic-string": "^0.30.21"
+        "magic-string": "^1.4.1"
     },
     "peerDependencies": {
         "graphql": "^16.0.0 || ^17.0.0"

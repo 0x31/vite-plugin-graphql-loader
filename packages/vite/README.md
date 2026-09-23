@@ -114,6 +114,7 @@ console.log(_fragments.ExampleFragment); // Has type `FragmentDefinitionNode`
 **_v5.3.0_**:
 
 - **Fix**: a file declaring the same name twice (two fragments, two operations, or a fragment and an operation) now fails the build with a clear error naming the duplicate. Each named definition emits one `export const`, so these previously produced a module with duplicate declarations that threw at load time. Duplicate _fragment_ names were silently deduplicated by `graphql-tag` before v5.3.0, so this case is a behaviour change: it is reported instead of quietly dropping one copy. Duplicate operation names were already broken and are now caught.
+- `magic-string` is updated to 1.x. `sourceMapOptions` passes straight through to it, so `hires` now also accepts `"boundary"` and `"experimental-range"` alongside `true` / `false`. Emitted code is unchanged.
 - The Vite and Bun loaders now share one implementation in this repository. `bun-graphql-loader` had drifted a long way behind and was missing the `${`/backslash escaping, `#import` path validation, prototype-safe fragment dedup and reserved-name fixes. Nothing changes for Vite users.
 - Emitted modules now name their injected helpers `graphqlLoaderUniqueChecker` / `graphqlLoaderExtractQuery` rather than `vitePluginGraphqlLoader*`, since the same code is emitted by both loaders. These identifiers are internal to the emitted module.
 

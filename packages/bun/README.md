@@ -135,5 +135,6 @@ declare module "*.graphql" {
     - Output no longer depends on the host platform's line endings.
     - **Fix**: a file declaring the same name twice (two fragments, two operations, or a fragment and an operation) fails the build with a clear error instead of emitting a module with duplicate `const` declarations.
 - GraphQL 17 is supported alongside 16, and `graphql` is a peer dependency rather than a direct one.
+- `magic-string` is updated to 1.x. `sourceMapOptions` passes straight through to it, so `hires` also accepts `"boundary"` and `"experimental-range"`.
 
 **_v1.0.3_** and earlier: see the [archived repository](https://github.com/0x31/bun-graphql-loader).
