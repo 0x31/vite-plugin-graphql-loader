@@ -268,6 +268,56 @@ describe("regression: emitted source locations", () => {
     });
 });
 
+describe("regression: duplicate definition names", () => {
+    // Each named definition emits one `export const`, so a repeated name
+    // produced a module with duplicate declarations that threw at load time.
+    // graphql-tag used to silently dedupe the fragment case; parsing with
+    // `graphql` directly does not, so the loader has to catch it itself.
+
+    it("rejects a fragment name declared twice", async () => {
+        await expect(
+            callTransform(
+                `fragment Frag on T { a }\nfragment Frag on T { a }\nquery Q { ...Frag }`,
+                "tests/dup.graphql",
+            ),
+        ).rejects.toThrow(/"Frag" in tests\/dup\.graphql is declared more than once/);
+    });
+
+    it("rejects an operation name declared twice", async () => {
+        await expect(
+            callTransform(`query Q { a }\nquery Q { b }`, "tests/dup.graphql"),
+        ).rejects.toThrow(/"Q" .* declared more than once/);
+    });
+
+    it("rejects a fragment and an operation sharing a name", async () => {
+        await expect(
+            callTransform(`fragment Same on T { a }\nquery Same { ...Same }`, "tests/dup.graphql"),
+        ).rejects.toThrow(/"Same" .* declared more than once/);
+    });
+
+    it("allows distinct names, including an anonymous operation", async () => {
+        const code = await transformedCode(
+            `fragment Frag on T { a }\nquery Q { ...Frag }`,
+            "tests/ok.graphql",
+        );
+        expect(code).toMatch(/export const Frag/);
+        expect(code).toMatch(/export const Q/);
+    });
+
+    it("emits no duplicate export declarations for any fixture", async () => {
+        // Belt and braces: the golden fixtures should never contain two
+        // `export const X` for the same X.
+        const files = (await readdir(TESTCASE_DIR, { recursive: true })).filter((f: string) =>
+            f.endsWith("-expected.js"),
+        );
+        for (const file of files) {
+            const content = await readFile(join(TESTCASE_DIR, file), "utf-8");
+            const names = [...content.matchAll(/^export const (\w+)/gm)].map((m) => m[1]);
+            expect(new Set(names).size, `${file} has a duplicate export`).toBe(names.length);
+        }
+    });
+});
+
 describe("regression: v5.1.1 fixes", () => {
     // Extract the runtime value of `_gql_source` from the emitted code by
     // writing it to a temp .mjs file and importing. Avoids in-process eval.

@@ -133,6 +133,7 @@ declare module "*.graphql" {
     - **Fix**: emitted `loc.start`/`loc.end` match `loc.source.body`. They were previously offset by the loader's own source indentation.
     - **Fix**: `noSourceMap` does something. Source map generation was commented out entirely, so the option was inert. The map is now inlined into the loaded module unless the option is set.
     - Output no longer depends on the host platform's line endings.
+    - **Fix**: a file declaring the same name twice (two fragments, two operations, or a fragment and an operation) fails the build with a clear error instead of emitting a module with duplicate `const` declarations.
 - GraphQL 17 is supported alongside 16, and `graphql` is a peer dependency rather than a direct one.
 
 **_v1.0.3_** and earlier: see the [archived repository](https://github.com/0x31/bun-graphql-loader).

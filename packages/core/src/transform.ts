@@ -127,6 +127,23 @@ export const transformGraphQL = (
         }
     }
 
+    // Each named definition becomes one `export const`, so two definitions
+    // sharing a name emit a duplicate declaration and the module fails to
+    // load. Catch it here, where we can say which name is at fault.
+    const seenNames = new Set<string>();
+    for (const def of documentNode.definitions) {
+        if (def.kind !== "OperationDefinition" && def.kind !== "FragmentDefinition") continue;
+        if (!def.name) continue;
+
+        const name = def.name.value;
+        if (seenNames.has(name)) {
+            throw new Error(
+                `graphql-loader: "${name}" in ${id} is declared more than once. Each operation and fragment is exported under its own name, so names have to be unique within a file.`,
+            );
+        }
+        seenNames.add(name);
+    }
+
     // MagicString is used to generate the source map. Order matters: escape
     // backslashes first so the subsequent backtick and `${` escape insertions
     // are themselves preserved verbatim in the emitted template literal
