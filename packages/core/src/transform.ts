@@ -1,4 +1,4 @@
-import { DocumentNode, parse } from "graphql";
+import { DocumentNode, parse, print } from "graphql";
 import MagicString, { SourceMap, SourceMapOptions } from "magic-string";
 import { graphqlLoaderUniqueChecker, graphqlLoaderExtractQuery } from "./snippets.js";
 
@@ -127,22 +127,27 @@ export const transformGraphQL = (
         }
     }
 
-    // Each named definition becomes one `export const`, so two definitions
-    // sharing a name emit a duplicate declaration and the module fails to
-    // load. Catch it here, where we can say which name is at fault.
-    const seenNames = new Set<string>();
-    for (const def of documentNode.definitions) {
-        if (def.kind !== "OperationDefinition" && def.kind !== "FragmentDefinition") continue;
-        if (!def.name) continue;
+    // Preserve fragment deduplication without ignoring differences inside string values.
+    const seenNames = new Map<string, string | null>();
+    documentNode = {
+        ...documentNode,
+        definitions: documentNode.definitions.filter((def) => {
+            if (def.kind !== "OperationDefinition" && def.kind !== "FragmentDefinition")
+                return true;
+            if (!def.name) return true;
 
-        const name = def.name.value;
-        if (seenNames.has(name)) {
-            throw new Error(
-                `graphql-loader: "${name}" in ${id} is declared more than once. Each operation and fragment is exported under its own name, so names have to be unique within a file.`,
-            );
-        }
-        seenNames.add(name);
-    }
+            const name = def.name.value;
+            const fragment = def.kind === "FragmentDefinition" ? print(def) : null;
+            if (seenNames.has(name)) {
+                if (fragment !== null && seenNames.get(name) === fragment) return false;
+                throw new Error(
+                    `graphql-loader: "${name}" in ${id} is declared more than once. Each operation and fragment is exported under its own name, so names have to be unique within a file.`,
+                );
+            }
+            seenNames.set(name, fragment);
+            return true;
+        }),
+    };
 
     // MagicString is used to generate the source map. Order matters: escape
     // backslashes first so the subsequent backtick and `${` escape insertions

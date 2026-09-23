@@ -328,13 +328,36 @@ describe("regression: duplicate definition names", () => {
     // graphql-tag used to silently dedupe the fragment case; parsing with
     // `graphql` directly does not, so the loader has to catch it itself.
 
-    it("rejects a fragment name declared twice", async () => {
+    it.each(["fragment Frag on T { a }", "fragment Frag on T {\n  # same selection\n  a,\n}"])(
+        "deduplicates equivalent fragments: %s",
+        async (fragment) => {
+            const source = `fragment Frag on T { a }\n${fragment}\nquery Q { ...Frag }`;
+            const code = await transformedCode(source, "tests/dup.graphql");
+            const document = JSON.parse(code.match(/^const _gql_doc = (\{.*\});$/m)![1]!);
+
+            expect(document.definitions).toHaveLength(2);
+            expect(code.match(/export const Frag =/g)).toHaveLength(1);
+            expect(document.loc.end).toBe(source.length);
+            expect(() => parse(code, { sourceType: "module" })).not.toThrow();
+        },
+    );
+
+    it("rejects different fragments sharing a name", async () => {
         await expect(
             callTransform(
-                `fragment Frag on T { a }\nfragment Frag on T { a }\nquery Q { ...Frag }`,
+                `fragment Frag on T { a }\nfragment Frag on T { b }\nquery Q { ...Frag }`,
                 "tests/dup.graphql",
             ),
         ).rejects.toThrow(/"Frag" in tests\/dup\.graphql is declared more than once/);
+    });
+
+    it("does not normalize whitespace inside fragment string values", async () => {
+        await expect(
+            callTransform(
+                `fragment Frag on T { a(value: "a b") }\nfragment Frag on T { a(value: "a  b") }`,
+                "tests/dup.graphql",
+            ),
+        ).rejects.toThrow(/"Frag" .* declared more than once/);
     });
 
     it("rejects an operation name declared twice", async () => {

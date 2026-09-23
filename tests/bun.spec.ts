@@ -1,6 +1,6 @@
 import { expect, describe, it } from "bun:test";
 import { readFile } from "fs/promises";
-import { join } from "path";
+import { join, resolve } from "path";
 import { Kind, parse, print, type DocumentNode } from "graphql";
 import bunGraphqlLoader from "../packages/bun/src/index.js";
 import { transformGraphQL } from "../packages/core/src/index.js";
@@ -77,6 +77,18 @@ describe("bun-graphql-loader", () => {
         expect(print(MultiQuery)).toBe(print(parse(source)));
     });
 
+    it("loads a module with equivalent duplicate fragments", async () => {
+        const source = `fragment F on Query { field }\nfragment F on Query {\n field\n}\nquery Q { ...F }`;
+        const { code } = transformGraphQL(source, "duplicate.graphql");
+        const mod = await import(
+            `data:text/javascript;base64,${Buffer.from(code).toString("base64")}`
+        );
+
+        expect(definitionNames(mod.default)).toEqual(["F", "Q"]);
+        expect(definitionNames(mod.Q)).toEqual(["Q", "F"]);
+        expect(mod.default.loc.source.body).toBe(source);
+    });
+
     it("generates a source map unless noSourceMap is set", () => {
         const source = "query Q { field }";
         const withMap = transformGraphQL(source, "x.graphql");
@@ -86,11 +98,8 @@ describe("bun-graphql-loader", () => {
         expect(withoutMap.map).toBeNull();
     });
 
-    // Runs the plugin's onLoad hook directly. Bun's loader API has no map
-    // channel, so the adapter inlines the map into the returned code; going
-    // through Bun.build wouldn't show this, since the bundler consumes the
-    // inline map rather than re-emitting it.
-    const runOnLoad = async (path: string, options?: { noSourceMap?: boolean }) => {
+    // Inspect the inline map directly. Bun 1.3.13 does not compose it into build maps.
+    const runOnLoad = async (path: string, options?: Parameters<typeof bunGraphqlLoader>[0]) => {
         let callback: ((args: { path: string }) => Promise<{ contents: string }>) | undefined;
         const builder = {
             onLoad: (_constraints: unknown, cb: typeof callback) => {
@@ -102,16 +111,35 @@ describe("bun-graphql-loader", () => {
         return callback({ path });
     };
 
-    it("inlines the source map into the loaded module", async () => {
+    it("inlines a map containing the original GraphQL filename and source", async () => {
         const path = join(TESTCASE_DIR, MULTI_QUERY_FIXTURE);
         const { contents } = await runOnLoad(path);
-        expect(contents).toContain("sourceMappingURL=data:application/json");
+        const encoded = contents.match(
+            /sourceMappingURL=data:application\/json;charset=utf-8;base64,(\S+)/,
+        )![1]!;
+        const map = JSON.parse(Buffer.from(encoded, "base64").toString("utf8"));
+        expect(map.sources).toEqual([resolve(path)]);
+        expect(map.sourcesContent).toEqual([await readFile(path, "utf-8")]);
+        expect(map.mappings.length).toBeGreaterThan(0);
     });
 
     it("omits the inline source map when noSourceMap is set", async () => {
         const path = join(TESTCASE_DIR, MULTI_QUERY_FIXTURE);
         const { contents } = await runOnLoad(path, { noSourceMap: true });
         expect(contents).not.toContain("sourceMappingURL");
+    });
+
+    it("honours source map option overrides", async () => {
+        const path = join(TESTCASE_DIR, MULTI_QUERY_FIXTURE);
+        const { contents } = await runOnLoad(path, {
+            sourceMapOptions: { source: "custom.graphql", includeContent: false },
+        });
+        const encoded = contents.match(
+            /sourceMappingURL=data:application\/json;charset=utf-8;base64,(\S+)/,
+        )![1]!;
+        const map = JSON.parse(Buffer.from(encoded, "base64").toString("utf8"));
+        expect(map.sources).toEqual(["custom.graphql"]);
+        expect(map.sourcesContent).toBeUndefined();
     });
 
     // The real invariant behind extractQuery: every document it hands back has
