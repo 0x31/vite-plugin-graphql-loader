@@ -1,0 +1,22 @@
+#import "./author.graphql"
+
+fragment PostSummary on Post {
+    id
+    title
+    author {
+        ...AuthorFields
+    }
+}
+
+query GetPost($id: ID!) {
+    post(id: $id) {
+        ...PostSummary
+        body
+    }
+}
+
+query ListPosts($limit: Int) {
+    posts(limit: $limit) {
+        ...PostSummary
+    }
+}

@@ -7,7 +7,7 @@
     "type": "module",
     "scripts": {
         "test": "vitest",
-        "test:run": "vitest run && bun test tests/bun.spec.ts",
+        "test:run": "vitest run && bun test tests/bun.spec.ts tests/smoke.spec.ts",
         "typecheck": "tsgo --noEmit",
         "build": "bun run --filter vite-plugin-graphql-loader build && bun run --filter bun-graphql-loader build",
         "lint": "oxlint --type-aware --ignore-pattern integration-test",
