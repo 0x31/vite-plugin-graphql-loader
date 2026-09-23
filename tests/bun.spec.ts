@@ -185,7 +185,6 @@ describe("bun-graphql-loader", () => {
         "continued/test10.gql",
         "continued/test11.gql",
         "continued/test12.gql",
-        "continued/test13.gql",
     ];
 
     it.each(IMPORT_FREE_FIXTURES)(

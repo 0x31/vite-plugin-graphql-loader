@@ -138,6 +138,7 @@ declare module "*.graphql" {
     - **Fix**: emitted `loc.start`/`loc.end` match `loc.source.body`. They were previously offset by the loader's own source indentation.
     - **Fix**: `noSourceMap` does something. Source map generation was commented out entirely, so the option was inert. The map is now inlined into the loaded module unless the option is set. It includes the source path and content, but Bun 1.3.13 does not compose it into build output maps (see the source map limitation above).
     - Output no longer depends on the host platform's line endings.
+    - **Fix**: anonymous operations follow GraphQL's LoneAnonymousOperation rule: legal only as a file's sole operation, and unaffected by how many fragments the file declares.
     - **Fix**: identical fragments within a file are deduplicated. Conflicting fragments, duplicate operations, and operations sharing a fragment name fail the build with a clear error.
 - GraphQL 17 is supported alongside 16, and `graphql` is a peer dependency rather than a direct one.
 - `magic-string` is updated to 1.x. `sourceMapOptions` passes straight through to it, so `hires` also accepts `"boundary"` and `"experimental-range"`.

@@ -322,6 +322,45 @@ describe("unit: #import parsing and file matching", () => {
     });
 });
 
+describe("regression: anonymous operations", () => {
+    // GraphQL's LoneAnonymousOperation rule: an anonymous operation is legal
+    // only as a document's sole operation. Fragments are not operations, so
+    // they don't affect it. The loader used to consult a count of named
+    // *definitions*, which both let invalid documents through and rejected
+    // valid ones.
+
+    it("still transforms a lone anonymous operation", async () => {
+        const code = await transformedCode(`{ a }`, "tests/anon.graphql");
+        expect(code).toContain("export default _gql_doc");
+        expect(code).toMatch(/export const _queries = \{\};/);
+    });
+
+    it("accepts an anonymous operation alongside fragments", async () => {
+        // Valid GraphQL, and previously rejected once a second fragment was
+        // present, because fragments were counted as operations.
+        const code = await transformedCode(
+            `fragment F on T { a }\nfragment G on T { b }\n{ t { ...F ...G } }`,
+            "tests/anon.graphql",
+        );
+        expect(code).toMatch(/export const F =/);
+        expect(code).toMatch(/export const G =/);
+    });
+
+    it("rejects two anonymous operations", async () => {
+        // This was the content of the old continued/test13 fixture, which the
+        // loader accepted even though no GraphQL server would.
+        await expect(
+            callTransform(`{\n    a\n}\n\n{\n    b\n}\n`, "tests/anon.graphql"),
+        ).rejects.toThrow(/anonymous operation alongside other operations/);
+    });
+
+    it("rejects an anonymous operation alongside a named one", async () => {
+        await expect(callTransform(`{ a }\nquery Q { b }`, "tests/anon.graphql")).rejects.toThrow(
+            /anonymous operation alongside other operations/,
+        );
+    });
+});
+
 describe("regression: duplicate definition names", () => {
     // Each named definition emits one `export const`, so a repeated name
     // produced a module with duplicate declarations that threw at load time.

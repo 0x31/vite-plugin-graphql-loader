@@ -136,6 +136,16 @@ export const transformGraphQL = (
         }
     }
 
+    // An anonymous operation is only legal as a document's sole operation
+    // (GraphQL's LoneAnonymousOperation rule), and it has no name to be
+    // exported under. Fragments are not operations and don't count here.
+    const operations = documentNode.definitions.filter((def) => def.kind === "OperationDefinition");
+    if (operations.length > 1 && operations.some((op) => !op.name)) {
+        throw new Error(
+            `graphql-loader: ${id} declares an anonymous operation alongside other operations. An anonymous operation has to be the only operation in a file.`,
+        );
+    }
+
     // Preserve fragment deduplication without ignoring differences inside string values.
     const seenNames = new Map<string, NamedDefinition>();
     documentNode = {
@@ -234,15 +244,9 @@ export const transformGraphQL = (
 
         for (const op of documentNode.definitions) {
             if (op.kind === "OperationDefinition" || op.kind === "FragmentDefinition") {
-                if (!op.name) {
-                    if (operationCount > 1) {
-                        throw new Error(
-                            "Query/mutation names are required for a document with multiple definitions",
-                        );
-                    } else {
-                        continue;
-                    }
-                }
+                // An anonymous operation has no name to export under. The guard
+                // above already established it is the file's only operation.
+                if (!op.name) continue;
 
                 const opName = op.name.value;
                 outputCode.append(
