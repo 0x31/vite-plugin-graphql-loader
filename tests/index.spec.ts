@@ -268,6 +268,66 @@ describe("regression: emitted source locations", () => {
     });
 });
 
+describe("unit: #import parsing and file matching", () => {
+    // `expandImports` and GRAPHQL_FILE_REGEX are internal, so they are covered
+    // through the plugin rather than exported purely for tests. These are the
+    // branches the golden fixtures never reach.
+
+    it("accepts a single-quoted #import path", async () => {
+        const code = await transformedCode(
+            `#import './frag.gql'\nquery Q { ...Frag }`,
+            "tests/x.graphql",
+        );
+        // Quotes are stripped and re-added by JSON.stringify, so the emitted
+        // ESM import is double-quoted regardless of the source style.
+        expect(code).toContain(`from "./frag.gql"`);
+    });
+
+    it("ignores an #import that appears after the first non-comment line", async () => {
+        const code = await transformedCode(
+            `query Q { field }\n#import "./late.gql"`,
+            "tests/x.graphql",
+        );
+        // No ESM import is generated for it. The text still appears inside
+        // `_gql_source`, which embeds the file verbatim by design.
+        expect(code).not.toMatch(/^import /m);
+        expect(code).toContain(`#import "./late.gql"`);
+    });
+
+    it("still reads #import lines that follow plain comments", async () => {
+        const code = await transformedCode(
+            `# a leading comment\n#import "./frag.gql"\nquery Q { ...Frag }`,
+            "tests/x.graphql",
+        );
+        expect(code).toContain(`from "./frag.gql"`);
+    });
+
+    it("gives each repeated #import path a distinct identifier", async () => {
+        const code = await transformedCode(
+            `#import "./frag.gql"\n#import "./frag.gql"\nquery Q { ...Frag }`,
+            "tests/x.graphql",
+        );
+        const identifiers = [...code.matchAll(/^import (\w+) from/gm)].map((m) => m[1]);
+        expect(identifiers).toHaveLength(2);
+        expect(new Set(identifiers).size).toBe(2);
+    });
+
+    it("leaves files whose extension does not match untouched", async () => {
+        const result = await callTransform(
+            `const notGraphql = "data-testid";`,
+            "tests/component.ts",
+        );
+        expect(result).toBeUndefined();
+    });
+
+    it("transforms both .gql and .graphql", async () => {
+        for (const id of ["tests/a.gql", "tests/a.graphql"]) {
+            const result = await callTransform(`query Q { field }`, id);
+            expect(result, id).not.toBeUndefined();
+        }
+    });
+});
+
 describe("regression: duplicate definition names", () => {
     // Each named definition emits one `export const`, so a repeated name
     // produced a module with duplicate declarations that threw at load time.

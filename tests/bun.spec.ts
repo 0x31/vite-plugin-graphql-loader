@@ -10,7 +10,7 @@ import { transformGraphQL } from "../packages/core/src/index.js";
 // `.graphql` imports, and `Bun.build`.
 
 import MultiQuery, { _queries, _fragments } from "./testcases/basic/test5.graphql";
-import WithImport from "./testcases/imports/test18.gql";
+import WithImport, { _queries as _importedQueries } from "./testcases/imports/test18.gql";
 
 const TESTCASE_DIR = "tests/testcases";
 const MULTI_QUERY_FIXTURE = "basic/test5.graphql";
@@ -112,6 +112,76 @@ describe("bun-graphql-loader", () => {
         const path = join(TESTCASE_DIR, MULTI_QUERY_FIXTURE);
         const { contents } = await runOnLoad(path, { noSourceMap: true });
         expect(contents).not.toContain("sourceMappingURL");
+    });
+
+    // The real invariant behind extractQuery: every document it hands back has
+    // to carry a definition for every fragment it spreads, transitively.
+    // Otherwise the document parses and prints fine but fails validation the
+    // moment a GraphQL client or server sees it.
+    const assertFragmentClosure = (doc: DocumentNode, label: string) => {
+        const defined = new Set(definitionNames(doc));
+        const spreads = new Set<string>();
+
+        const walk = (node: unknown) => {
+            if (!node || typeof node !== "object") return;
+            if (Array.isArray(node)) {
+                node.forEach(walk);
+                return;
+            }
+            const n = node as { kind?: string; name?: { value?: string } };
+            if (n.kind === "FragmentSpread" && n.name?.value) spreads.add(n.name.value);
+            Object.values(node).forEach(walk);
+        };
+        walk(doc.definitions);
+
+        for (const spread of spreads) {
+            expect(
+                defined.has(spread),
+                `${label} spreads ...${spread} but does not define it`,
+            ).toBe(true);
+        }
+    };
+
+    // Every fixture without an #import is loadable directly, so run the real
+    // emitted module through the invariant rather than trusting name lists.
+    const IMPORT_FREE_FIXTURES = [
+        "basic/test1.gql",
+        "basic/test3.graphql",
+        "basic/test5.graphql",
+        "continued/test6.gql",
+        "continued/test7.gql",
+        "continued/test8.gql",
+        "continued/test9.gql",
+        "continued/test10.gql",
+        "continued/test11.gql",
+        "continued/test12.gql",
+        "continued/test13.gql",
+    ];
+
+    it.each(IMPORT_FREE_FIXTURES)(
+        "every document exported by %s is fragment-complete",
+        async (fixture: string) => {
+            const mod = (await import(`./testcases/${fixture}`)) as unknown as Record<
+                string,
+                unknown
+            >;
+            let checked = 0;
+            for (const [name, value] of Object.entries(mod)) {
+                if (name === "_queries" || name === "_fragments") continue;
+                const doc = value as DocumentNode;
+                if (!doc || doc.kind !== Kind.DOCUMENT) continue;
+                assertFragmentClosure(doc, `${fixture} export ${name}`);
+                checked++;
+            }
+            expect(checked).toBeGreaterThan(0);
+        },
+    );
+
+    it("documents assembled from #imports are fragment-complete too", () => {
+        assertFragmentClosure(WithImport, "test18 default");
+        for (const [name, doc] of Object.entries(_importedQueries)) {
+            assertFragmentClosure(doc, `test18 query ${name}`);
+        }
     });
 
     it("builds a working bundle through Bun.build", async () => {
