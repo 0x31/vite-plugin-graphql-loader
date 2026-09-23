@@ -1,6 +1,15 @@
-import { DocumentNode, parse, print } from "graphql";
+import {
+    type FragmentDefinitionNode,
+    type OperationDefinitionNode,
+    DocumentNode,
+    parse,
+    print,
+} from "graphql";
 import MagicString, { SourceMap, SourceMapOptions } from "magic-string";
 import { graphqlLoaderUniqueChecker, graphqlLoaderExtractQuery } from "./snippets.js";
+
+// The definition kinds that become a named export.
+type NamedDefinition = OperationDefinitionNode | FragmentDefinitionNode;
 
 const DOC_NAME = "_gql_doc";
 
@@ -128,7 +137,7 @@ export const transformGraphQL = (
     }
 
     // Preserve fragment deduplication without ignoring differences inside string values.
-    const seenNames = new Map<string, string | null>();
+    const seenNames = new Map<string, NamedDefinition>();
     documentNode = {
         ...documentNode,
         definitions: documentNode.definitions.filter((def) => {
@@ -136,15 +145,23 @@ export const transformGraphQL = (
                 return true;
             if (!def.name) return true;
 
-            const name = def.name.value;
-            const fragment = def.kind === "FragmentDefinition" ? print(def) : null;
-            if (seenNames.has(name)) {
-                if (fragment !== null && seenNames.get(name) === fragment) return false;
+            const previous = seenNames.get(def.name.value);
+            if (previous) {
+                // Only print once a name actually collides, which is rare, so
+                // the common path doesn't pay for it. Two equivalent fragments
+                // are deduplicated; anything else sharing a name is ambiguous.
+                if (
+                    def.kind === "FragmentDefinition" &&
+                    previous.kind === "FragmentDefinition" &&
+                    print(previous) === print(def)
+                ) {
+                    return false;
+                }
                 throw new Error(
-                    `graphql-loader: "${name}" in ${id} is declared more than once. Each operation and fragment is exported under its own name, so names have to be unique within a file.`,
+                    `graphql-loader: "${def.name.value}" in ${id} is declared more than once. Each operation and fragment is exported under its own name, so names have to be unique within a file.`,
                 );
             }
-            seenNames.set(name, fragment);
+            seenNames.set(def.name.value, def);
             return true;
         }),
     };

@@ -1,6 +1,6 @@
 import { expect, describe, it } from "bun:test";
 import { readFile } from "fs/promises";
-import { join, resolve } from "path";
+import { join, relative } from "path";
 import { Kind, parse, print, type DocumentNode } from "graphql";
 import bunGraphqlLoader from "../packages/bun/src/index.js";
 import { transformGraphQL } from "../packages/core/src/index.js";
@@ -118,7 +118,9 @@ describe("bun-graphql-loader", () => {
             /sourceMappingURL=data:application\/json;charset=utf-8;base64,(\S+)/,
         )![1]!;
         const map = JSON.parse(Buffer.from(encoded, "base64").toString("utf8"));
-        expect(map.sources).toEqual([resolve(path)]);
+        // Relative to cwd, so the map does not embed an absolute build path.
+        expect(map.sources).toEqual([relative(process.cwd(), path)]);
+        expect(map.sources[0].startsWith("/")).toBe(false);
         expect(map.sourcesContent).toEqual([await readFile(path, "utf-8")]);
         expect(map.mappings.length).toBeGreaterThan(0);
     });

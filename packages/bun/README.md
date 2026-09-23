@@ -101,7 +101,7 @@ bunGraphqlLoader({
 
 ### Source map limitation
 
-The generated module includes an inline map with the original file path and GraphQL source content. `sourceMapOptions` can override these defaults.
+The generated module includes an inline map with the original file path (relative to the working directory) and GraphQL source content. `sourceMapOptions` can override these defaults.
 
 Bun 1.3.13 does **not** compose this inline map into `Bun.build` output maps. Those maps refer to the generated JavaScript, not the original GraphQL. This plugin does not currently provide original GraphQL source mapping through `Bun.build`. `noSourceMap` controls only the inline map and does not change Bun's own `sourcemap` build option.
 

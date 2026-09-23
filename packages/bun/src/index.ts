@@ -1,5 +1,5 @@
 import type { BunPlugin, PluginBuilder } from "bun";
-import { resolve } from "node:path";
+import { relative } from "node:path";
 import {
     GRAPHQL_FILE_REGEX,
     transformGraphQL,
@@ -25,7 +25,10 @@ export const bunGraphqlLoader = (options?: GraphqlLoaderOptions): BunPlugin => {
                 const { code, map } = transformGraphQL(source, args.path, {
                     ...options,
                     sourceMapOptions: {
-                        source: resolve(args.path),
+                        // Relative to the working directory, so the emitted map
+                        // is identical wherever the build runs and carries no
+                        // absolute build path.
+                        source: relative(process.cwd(), args.path) || args.path,
                         includeContent: true,
                         ...options?.sourceMapOptions,
                     },
