@@ -80,8 +80,12 @@ const graphqlLoaderExtractQuery = (doc, operationName) => {
 	if (!rootOperation) {
 		throw new Error(`graphql-loader: operation "${operationName}" not found in document`);
 	};
-	// Copy the DocumentNode, but clear out the definitions.
-	const newDoc = Object.assign({}, doc, { definitions: [rootOperation] });
+	// Copy the DocumentNode, but clear out the definitions. `loc` is left
+	// behind on purpose: it describes the whole file, and clients that read
+	// `loc.source.body` rather than printing the document (urql's
+	// `stringifyDocument`, for one) would send every operation in the file.
+	const { loc: _wholeFileLoc, ...docWithoutLoc } = doc;
+	const newDoc = Object.assign({}, docWithoutLoc, { definitions: [rootOperation] });
 	// Now, for the operation we're running, find any fragments referenced by
 	// it or the fragments it references.
 	const opRefs = definitionRefs[operationName] || new Set();

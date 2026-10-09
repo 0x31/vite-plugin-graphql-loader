@@ -6,6 +6,7 @@ import {
     validate,
     type DocumentNode,
 } from "graphql";
+import { print } from "graphql";
 import { rootValue, schema } from "./smoke/schema.js";
 
 // End-to-end smoke test: take the modules the loader actually emits and put
@@ -89,6 +90,18 @@ describe("smoke: emitted documents against a real schema", () => {
                 { id: "p2", title: "Second", author: { id: "a2", name: "Grace" } },
             ],
         });
+    });
+
+    it("sends only the requested operation the way a real client would", () => {
+        // How @urql/core's stringifyDocument picks what goes over the wire: it
+        // prefers loc.source.body over print(). Issue #14: extracted documents
+        // used to carry the whole file's loc, so importing one operation sent
+        // every operation in the file, and one invalid operation broke the rest.
+        const stringifyDocument = (doc: DocumentNode) => doc.loc?.source.body ?? print(doc);
+
+        const sent = stringifyDocument(_queries.GetPost!);
+        expect(sent).toContain("GetPost");
+        expect(sent).not.toContain("ListPosts");
     });
 
     it("exposes the fragments, and a fragment-only file stays valid", () => {

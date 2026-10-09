@@ -113,6 +113,7 @@ console.log(_fragments.ExampleFragment); // Has type `FragmentDefinitionNode`
 
 **_v5.3.0_**:
 
+- **Fix**: named operation exports no longer carry the whole file's `loc` (fixes #14). Each export already held only its own operation, but it inherited the document's `loc`, whose `source.body` is the entire file. Clients that send `loc.source.body` instead of printing the document, such as urql's `stringifyDocument`, therefore sent every operation in the file, so a single invalid operation broke every import from it. Extracted documents now omit `loc`, and the default export keeps it because there it matches the definitions.
 - **Fix**: anonymous operations now follow GraphQL's LoneAnonymousOperation rule. A file with an anonymous operation alongside any other operation fails the build instead of silently dropping it, and a file with an anonymous operation alongside two or more fragments is no longer rejected. Fragments were previously counted as operations when deciding whether a name was required.
 - Identical fragments within a file are deduplicated, preserving the previous `graphql-tag` behaviour. Formatting and comments do not affect equality. Conflicting fragments, duplicate operations, and operations sharing a fragment name fail the build with a clear error.
 - `magic-string` is updated to 1.x. `sourceMapOptions` passes straight through to it, so `hires` now also accepts `"boundary"` and `"experimental-range"` alongside `true` / `false`. Emitted code is unchanged.

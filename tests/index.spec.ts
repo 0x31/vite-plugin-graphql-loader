@@ -322,6 +322,59 @@ describe("unit: #import parsing and file matching", () => {
     });
 });
 
+describe("regression: issue #14 extracted documents drop the file's loc", () => {
+    // https://github.com/0x31/vite-plugin-graphql-loader/issues/14
+    // Each named export holds only its own operation, but it used to inherit
+    // the whole document's `loc`, whose `source.body` is the entire file.
+    // Clients that send `loc.source.body` instead of printing (urql's
+    // `stringifyDocument`) then send every operation in the file, so one
+    // invalid operation breaks every import from it.
+    const MULTI_OP = `mutation createThing { createThing { id } }\nmutation deleteThing { deleteThing }\n`;
+
+    const loadModule = async (source: string, id: string) => {
+        const code = await transformedCode(source, id);
+        return (await import(
+            `data:text/javascript;base64,${Buffer.from(code).toString("base64")}`
+        )) as Record<string, { loc?: unknown; definitions: { name?: { value: string } }[] }>;
+    };
+
+    it("omits loc on a named operation export", async () => {
+        const mod = await loadModule(MULTI_OP, "tests/things.graphql");
+
+        expect(mod.createThing!.definitions.map((d) => d.name?.value)).toEqual(["createThing"]);
+        expect(mod.createThing!.loc).toBeUndefined();
+    });
+
+    it("keeps loc on the default export, where it matches the definitions", async () => {
+        const mod = await loadModule(MULTI_OP, "tests/things.graphql");
+        const doc = mod.default as unknown as {
+            loc: { end: number; source: { body: string } };
+        };
+
+        expect(doc.loc.source.body).toBe(MULTI_OP);
+        expect(doc.loc.end).toBe(MULTI_OP.length);
+    });
+
+    it("omits loc on an extracted fragment export too", async () => {
+        const mod = await loadModule(
+            `fragment F on T { a }\nquery Q { ...F }`,
+            "tests/frag.graphql",
+        );
+
+        expect(mod.Q!.loc).toBeUndefined();
+        expect(mod.F!.loc).toBeUndefined();
+    });
+
+    it("still carries the operation's own fragments", async () => {
+        const mod = await loadModule(
+            `fragment F on T { a }\nquery Q { ...F }\nquery R { b }`,
+            "tests/frag.graphql",
+        );
+
+        expect(mod.Q!.definitions.map((d) => d.name?.value).sort()).toEqual(["F", "Q"]);
+    });
+});
+
 describe("regression: anonymous operations", () => {
     // GraphQL's LoneAnonymousOperation rule: an anonymous operation is legal
     // only as a document's sole operation. Fragments are not operations, so
