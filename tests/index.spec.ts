@@ -8,7 +8,7 @@ import { readFile, readdir, rm, writeFile } from "fs/promises";
 import { PluginOption } from "vite";
 import { basename, extname, join } from "path";
 import { existsSync } from "fs";
-import { parse as parseGraphql } from "graphql";
+import { buildSchema, parse as parseGraphql, validate } from "graphql";
 import {
     graphqlLoaderExtractQuery,
     graphqlLoaderUniqueChecker,
@@ -481,15 +481,32 @@ describe("regression: issue #14 extracted documents describe only their own text
         expect(names).toEqual(["R", "F"]);
     });
 
-    it("points each definition at its source without making it enumerable", async () => {
+    it("keeps definition locations off the enumerable surface", async () => {
         const mod = await loadModule(MULTI_OP, "tests/things.graphql");
         const doc = mod.default!;
 
-        // Slicing works, and serializing the document still carries the file
-        // text once rather than once per definition.
+        // The helpers can slice a definition's text, while serializing the
+        // document carries the file text once and no definition loc.
         expect(doc.definitions[0]!.loc?.source?.body).toBe(MULTI_OP);
+        expect(Object.keys(doc.definitions[0]!)).not.toContain("loc");
         const serialized = JSON.stringify(doc);
         expect(serialized.split("mutation deleteThing { deleteThing }")).toHaveLength(2);
+    });
+
+    it("validates a cloned document rather than throwing on a sourceless loc", async () => {
+        // A clone keeps enumerable properties only. Definition locs that
+        // survived as `{start, end}` without `source` made graphql's error
+        // construction throw a TypeError instead of reporting the error.
+        const schema = buildSchema(`type T { a: Int } type Query { t: T b: Int }`);
+        const mod = await loadModule(`fragment F on T { a }\nquery Q { b }`, "tests/clone.graphql");
+
+        for (const clone of [
+            structuredClone(mod.default),
+            JSON.parse(JSON.stringify(mod.default)),
+        ]) {
+            const errors = validate(schema, clone as unknown as DocumentNode);
+            expect(errors.map((e) => e.message)).toEqual(['Fragment "F" is never used.']);
+        }
     });
 });
 

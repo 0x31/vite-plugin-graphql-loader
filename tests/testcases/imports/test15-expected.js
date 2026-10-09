@@ -10,10 +10,10 @@ query {
     }
 }
 `;
-const _gql_doc = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","variableDefinitions":[],"directives":[],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"test"},"arguments":[],"directives":[],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"Frag1"},"directives":[]}]}}]},"loc":{"start":92,"end":135}}],"loc":{"start":0,"end":136}};
+const _gql_doc = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","variableDefinitions":[],"directives":[],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"test"},"arguments":[],"directives":[],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"Frag1"},"directives":[]}]}}]}}],"loc":{"start":0,"end":136}};
 _gql_doc.loc.source = {"name":"GraphQL request","locationOffset":{"line":1,"column":1}};
 _gql_doc.loc.source.body = _gql_source;
-_gql_doc.definitions.forEach((def) => Object.defineProperty(def.loc, "source", { value: _gql_doc.loc.source }));
+[[92,135]].forEach(([start, end], i) => Object.defineProperty(_gql_doc.definitions[i], "loc", { value: { start, end, source: _gql_doc.loc.source } }));
 const graphqlLoaderSourceLoc = (definitions) => {
 	const parts = [];
 	for (const definition of definitions) {

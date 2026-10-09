@@ -22,10 +22,10 @@ const DOC_NAME = "_gql_doc";
 // would declare a second export of the same name.
 const RESERVED_NAMES = new Set(["default", "_queries", "_fragments"]);
 
-// Drop `loc` from every node below the top-level definitions. Keeping them all
-// would roughly double the size of the emitted document. A definition keeps
-// its own `{start, end}` so its text can be sliced back out of the source
-// when documents are assembled from several definitions at runtime.
+// Drop `loc` from every node below the document root. Keeping them would
+// roughly double the size of the emitted document. Each top-level definition's
+// offsets are emitted separately and attached at load time, so its text can
+// be sliced back out of the source when documents are assembled at runtime.
 const stripNestedLoc = (value: unknown): void => {
     if (Array.isArray(value)) {
         value.forEach(stripNestedLoc);
@@ -221,11 +221,7 @@ export const transformGraphQL = (
     // pointing at the source-mapped `_gql_source` constant.
     const documentObject = JSON.parse(JSON.stringify(documentNode));
     const topLoc = documentNode.loc;
-    for (const definition of documentObject.definitions) {
-        for (const [key, value] of Object.entries(definition)) {
-            if (key !== "loc") stripNestedLoc(value);
-        }
-    }
+    stripNestedLoc(documentObject.definitions);
 
     outputCode.append(`const ${DOC_NAME} = ${JSON.stringify(documentObject)};\n`);
     if (topLoc && topLoc.source) {
@@ -236,13 +232,21 @@ export const transformGraphQL = (
             })};\n`,
         );
         outputCode.append(`${DOC_NAME}.loc.source.body = _gql_source;\n`);
-        // Each definition points at the source it was sliced from, so a
-        // document assembled from several files can rebuild its body. Not
-        // enumerable, so serializing a document doesn't repeat the file once
-        // per definition.
-        outputCode.append(
-            `${DOC_NAME}.definitions.forEach((def) => Object.defineProperty(def.loc, "source", { value: ${DOC_NAME}.loc.source }));\n`,
+
+        // Where each definition's text sits in the body, attached as a `loc`
+        // that points at the source it came from, so a document assembled
+        // from several files can rebuild its body. Defined off the enumerable
+        // surface: a clone of the document (JSON, structuredClone) then holds
+        // no definition `loc` at all, rather than offsets without a source,
+        // which makes graphql throw instead of reporting errors.
+        const offsets = documentNode.definitions.map((def) =>
+            def.loc ? [def.loc.start, def.loc.end] : null,
         );
+        if (offsets.every((offset) => offset !== null)) {
+            outputCode.append(
+                `${JSON.stringify(offsets)}.forEach(([start, end], i) => Object.defineProperty(${DOC_NAME}.definitions[i], "loc", { value: { start, end, source: ${DOC_NAME}.loc.source } }));\n`,
+            );
+        }
     }
 
     // Resolve #import statements.
