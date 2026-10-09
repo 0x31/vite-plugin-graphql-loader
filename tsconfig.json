@@ -3,7 +3,6 @@
         "module": "NodeNext",
         "target": "esnext",
         "moduleResolution": "NodeNext",
-        "noImplicitAny": false,
         "types": ["node"]
     },
     "exclude": ["node_modules", "**/dist", "integration-test"]

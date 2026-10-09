@@ -31,6 +31,14 @@ jobs:
                       bun-v*)  echo "dir=packages/bun"  >> "$GITHUB_OUTPUT" ;;
                       *) echo "Unrecognized tag $GITHUB_REF_NAME" >&2; exit 1 ;;
                   esac
+            - name: Tag must match the package version
+              working-directory: ${{ steps.target.outputs.dir }}
+              run: |
+                  version="$(node -p 'require("./package.json").version')"
+                  case "$GITHUB_REF_NAME" in
+                      *-v"$version") ;;
+                      *) echo "Tag $GITHUB_REF_NAME does not match package version $version" >&2; exit 1 ;;
+                  esac
             - run: bun install --frozen-lockfile
             - run: bun run lint
             - run: bun run format:check
