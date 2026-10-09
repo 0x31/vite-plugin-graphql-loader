@@ -387,19 +387,27 @@ describe("unit: #import parsing and file matching", () => {
         "tests/a.gql?url",
         "tests/a.graphql?worker",
         "tests/a.graphql?raw&import",
+        "tests/a.graphql?import&sharedworker",
     ])("leaves %s to Vite, which has already loaded it as JavaScript", async (id) => {
         // What the loader would otherwise try to parse as GraphQL.
         const result = await callTransform(`export default "query Q { field }"`, id);
         expect(result).toBeUndefined();
     });
 
-    it.each(["tests/a.graphql?import", "tests/a.graphql?inline", "tests/a.graphql?v=1&foo=bar"])(
-        "still transforms %s",
-        async (id) => {
-            const result = await callTransform(`query Q { field }`, id);
-            expect(result).not.toBeUndefined();
-        },
-    );
+    it.each([
+        "tests/a.graphql?import",
+        "tests/a.graphql?inline",
+        "tests/a.graphql?v=1&foo=bar",
+        // Vite's asset plugin matches a whole parameter, so none of these are
+        // Vite's, and skipping them would leave GraphQL to be parsed as JS.
+        "tests/a.graphql?raw=1",
+        "tests/a.graphql?url=false",
+        "tests/a.graphql?worker-options",
+        "tests/a.graphql?rawx",
+    ])("still transforms %s", async (id) => {
+        const result = await callTransform(`query Q { field }`, id);
+        expect(result).not.toBeUndefined();
+    });
 });
 
 describe("regression: issue #14 extracted documents describe only their own text", () => {
