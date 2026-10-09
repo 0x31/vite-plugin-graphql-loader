@@ -259,7 +259,8 @@ export const transformGraphQL = (
     // duplicates, the file's text no longer describes the document. Rebuild
     // `loc.source.body` from the definitions for clients that send it rather
     // than printing (urql's `stringifyDocument`, graphql-tag's `gql`).
-    if (extractQueries || deduplicated) {
+    const rebuildLoc = imports.length > 0 || deduplicated;
+    if (extractQueries || rebuildLoc) {
         outputCode.append(
             `const ${graphqlLoaderSourceLoc.name} = ${graphqlLoaderSourceLoc.toString()};\n`,
         );
@@ -271,7 +272,7 @@ export const transformGraphQL = (
         );
         outputCode.append(importAppends.join(""));
     }
-    if (imports.length || deduplicated) {
+    if (rebuildLoc) {
         outputCode.append(
             `${DOC_NAME}.loc = ${graphqlLoaderSourceLoc.name}(${DOC_NAME}.definitions);\n`,
         );

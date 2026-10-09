@@ -1,0 +1,9 @@
+#import "./user.gql"
+
+# An anonymous operation has no named export, so nothing but the default
+# export and the rebuilt loc is emitted for this file.
+{
+    user {
+        ...User
+    }
+}

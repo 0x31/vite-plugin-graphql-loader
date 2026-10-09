@@ -8,6 +8,7 @@ import { Kind, type DocumentNode } from "graphql";
 import ShadowDocument, { _queries as shadowQueries } from "./merge/shadow.gql";
 import SameDocument from "./merge/same.gql";
 import KeepsOpsDocument, { _queries as keepsOpsQueries } from "./merge/keeps-ops.gql";
+import AnonImportDocument from "./merge/anon-import.gql";
 
 const describeDefinitions = (doc: DocumentNode) =>
     doc.definitions.map((def) =>
@@ -27,6 +28,16 @@ describe("merging #imported files", () => {
             "query Other",
             "fragment User",
         ]);
+    });
+
+    it("rebuilds the body of a file with an anonymous operation and an #import", () => {
+        // No named export means no extraction helper, but the merged default
+        // export still needs the helper that rebuilds its loc.
+        expect(describeDefinitions(AnonImportDocument)).toEqual([
+            "OperationDefinition",
+            "fragment User",
+        ]);
+        expect(AnonImportDocument.loc?.source.body).toContain("fragment User on User");
     });
 
     it("keeps one copy of a fragment that two imported files define identically", () => {
