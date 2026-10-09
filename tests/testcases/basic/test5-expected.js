@@ -109,9 +109,12 @@ const graphqlLoaderExtractQuery = (doc, operationName) => {
 	});
 	return newDoc;
 };
-export const TestFragment = graphqlLoaderExtractQuery(_gql_doc, "TestFragment");
-export const TestQuery = graphqlLoaderExtractQuery(_gql_doc, "TestQuery");
-export const TestQuery2 = graphqlLoaderExtractQuery(_gql_doc, "TestQuery2");
-export const _queries = {TestQuery,TestQuery2};
-export const _fragments = {TestFragment};
+const $TestFragment = graphqlLoaderExtractQuery(_gql_doc, "TestFragment");
+export { $TestFragment as TestFragment };
+const $TestQuery = graphqlLoaderExtractQuery(_gql_doc, "TestQuery");
+export { $TestQuery as TestQuery };
+const $TestQuery2 = graphqlLoaderExtractQuery(_gql_doc, "TestQuery2");
+export { $TestQuery2 as TestQuery2 };
+export const _queries = {"TestQuery": $TestQuery, "TestQuery2": $TestQuery2};
+export const _fragments = {"TestFragment": $TestFragment};
 export default _gql_doc;

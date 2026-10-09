@@ -122,7 +122,8 @@ const graphqlLoaderExtractQuery = (doc, operationName) => {
 	});
 	return newDoc;
 };
-export const TestQuery = graphqlLoaderExtractQuery(_gql_doc, "TestQuery");
-export const _queries = {TestQuery};
+const $TestQuery = graphqlLoaderExtractQuery(_gql_doc, "TestQuery");
+export { $TestQuery as TestQuery };
+export const _queries = {"TestQuery": $TestQuery};
 export const _fragments = {};
 export default _gql_doc;

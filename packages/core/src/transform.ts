@@ -1,5 +1,6 @@
 import {
     type FragmentDefinitionNode,
+    type NameNode,
     type OperationDefinitionNode,
     DocumentNode,
     parse,
@@ -13,9 +14,9 @@ type NamedDefinition = OperationDefinitionNode | FragmentDefinitionNode;
 
 const DOC_NAME = "_gql_doc";
 
-// Identifiers the emitted module declares for itself; a GraphQL definition
-// whose name collides with one of these would emit a duplicate `const`.
-const RESERVED_NAMES = new Set([DOC_NAME, "_gql_source", "_queries", "_fragments"]);
+// Names the emitted module exports for itself. A definition using one of them
+// would declare a second export of the same name.
+const RESERVED_NAMES = new Set(["default", "_queries", "_fragments"]);
 
 // Drop `loc` from every node below the document root. Keeping them would
 // roughly double the size of the emitted document for no benefit, and it
@@ -125,13 +126,17 @@ export const transformGraphQL = (
         );
     }
 
-    // Reject definitions that would collide with identifiers the emitted
-    // module declares for itself. Without this guard the emitted code would
-    // contain duplicate `const` declarations and fail to load.
+    // Named operations and fragments become named exports.
+    const isNamedDefinition = (
+        def: DocumentNode["definitions"][number],
+    ): def is NamedDefinition & { name: NameNode } =>
+        (def.kind === "OperationDefinition" || def.kind === "FragmentDefinition") &&
+        def.name !== undefined;
+
     for (const def of documentNode.definitions) {
-        if ("name" in def && def.name && RESERVED_NAMES.has(def.name.value)) {
+        if (isNamedDefinition(def) && RESERVED_NAMES.has(def.name.value)) {
             throw new Error(
-                `graphql-loader: definition "${def.name.value}" in ${id} uses a reserved identifier name (${[...RESERVED_NAMES].join(", ")})`,
+                `graphql-loader: definition "${def.name.value}" in ${id} uses a reserved name (${[...RESERVED_NAMES].join(", ")}), which the emitted module exports itself`,
             );
         }
     }
@@ -227,43 +232,42 @@ export const transformGraphQL = (
     // dependencies at compile time, and then uses those at load time to create
     // minimal query documents. We cannot do the latter at compile time due to
     // how the #import code works.
-    const operationCount = documentNode.definitions.filter(
-        (op) => (op.kind === "OperationDefinition" || op.kind === "FragmentDefinition") && op.name,
-    ).length;
-
-    const queryNames: string[] = [];
-    const fragmentNames: string[] = [];
-
-    if (operationCount >= 1) {
-        const extractQueries = operationCount > 1 || imports.length > 0;
-        if (extractQueries) {
-            outputCode.append(
-                `const ${graphqlLoaderExtractQuery.name} = ${graphqlLoaderExtractQuery.toString()};\n`,
-            );
-        }
-
-        for (const op of documentNode.definitions) {
-            if (op.kind === "OperationDefinition" || op.kind === "FragmentDefinition") {
-                // An anonymous operation has no name to export under. The guard
-                // above already established it is the file's only operation.
-                if (!op.name) continue;
-
-                const opName = op.name.value;
-                outputCode.append(
-                    `export const ${opName} = ${extractQueries ? `${graphqlLoaderExtractQuery.name}(${DOC_NAME}, "${opName}")` : DOC_NAME};\n`,
-                );
-
-                if (op.kind === "OperationDefinition") {
-                    queryNames.push(opName);
-                } else {
-                    fragmentNames.push(opName);
-                }
-            }
-        }
+    const namedDefinitions = documentNode.definitions.filter(isNamedDefinition);
+    const extractQueries = namedDefinitions.length > 1 || imports.length > 0;
+    if (namedDefinitions.length > 0 && extractQueries) {
+        outputCode.append(
+            `const ${graphqlLoaderExtractQuery.name} = ${graphqlLoaderExtractQuery.toString()};\n`,
+        );
     }
 
-    outputCode.append(`export const _queries = {${queryNames.join(",")}};\n`);
-    outputCode.append(`export const _fragments = {${fragmentNames.join(",")}};\n`);
+    // Entries of the `_queries` and `_fragments` registries, as `"name": local`.
+    const queries: string[] = [];
+    const fragments: string[] = [];
+
+    for (const def of namedDefinitions) {
+        const name = def.name.value;
+
+        // Each export is aliased from a `$`-prefixed local. `$` cannot appear
+        // in a GraphQL name, so the local can neither collide with the module's
+        // own identifiers nor shadow a global the helpers use, and an export
+        // specifier accepts reserved words (`export { $delete as delete }`)
+        // where `export const delete` would not parse.
+        let local = DOC_NAME;
+        if (extractQueries) {
+            local = `$${name}`;
+            outputCode.append(
+                `const ${local} = ${graphqlLoaderExtractQuery.name}(${DOC_NAME}, ${JSON.stringify(name)});\n`,
+            );
+        }
+        outputCode.append(`export { ${local} as ${name} };\n`);
+
+        (def.kind === "OperationDefinition" ? queries : fragments).push(
+            `${JSON.stringify(name)}: ${local}`,
+        );
+    }
+
+    outputCode.append(`export const _queries = {${queries.join(", ")}};\n`);
+    outputCode.append(`export const _fragments = {${fragments.join(", ")}};\n`);
 
     outputCode.append(`export default ${DOC_NAME};\n`);
 

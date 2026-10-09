@@ -174,7 +174,7 @@ describe("regression: v5.1.0 fixes", () => {
             `query Foo { field }`,
             "tests/testcases/regression.gql?used",
         );
-        expect(code).toMatch(/export const Foo/);
+        expect(code).toMatch(/export \{ _gql_doc as Foo \};/);
     });
 
     it("rejects #import paths containing backticks", async () => {
@@ -414,8 +414,8 @@ describe("regression: anonymous operations", () => {
             `fragment F on T { a }\nfragment G on T { b }\n{ t { ...F ...G } }`,
             "tests/anon.graphql",
         );
-        expect(code).toMatch(/export const F =/);
-        expect(code).toMatch(/export const G =/);
+        expect(code).toMatch(/export \{ \$F as F \};/);
+        expect(code).toMatch(/export \{ \$G as G \};/);
     });
 
     it("rejects two anonymous operations", async () => {
@@ -447,7 +447,7 @@ describe("regression: duplicate definition names", () => {
             const document = JSON.parse(code.match(/^const _gql_doc = (\{.*\});$/m)![1]!);
 
             expect(document.definitions).toHaveLength(2);
-            expect(code.match(/export const Frag =/g)).toHaveLength(1);
+            expect(code.match(/export \{ \$Frag as Frag \};/g)).toHaveLength(1);
             expect(document.loc.end).toBe(source.length);
             expect(() => parse(code, { sourceType: "module" })).not.toThrow();
         },
@@ -488,21 +488,77 @@ describe("regression: duplicate definition names", () => {
             `fragment Frag on T { a }\nquery Q { ...Frag }`,
             "tests/ok.graphql",
         );
-        expect(code).toMatch(/export const Frag/);
-        expect(code).toMatch(/export const Q/);
+        expect(code).toMatch(/export \{ \$Frag as Frag \};/);
+        expect(code).toMatch(/export \{ \$Q as Q \};/);
     });
 
-    it("emits no duplicate export declarations for any fixture", async () => {
-        // Belt and braces: the golden fixtures should never contain two
-        // `export const X` for the same X.
+    it("emits no duplicate export names for any fixture", async () => {
+        // Belt and braces: the golden fixtures should never export one name
+        // twice, which is a SyntaxError at load time.
         const files = (await readdir(TESTCASE_DIR, { recursive: true })).filter((f: string) =>
             f.endsWith("-expected.js"),
         );
         for (const file of files) {
             const content = await readFile(join(TESTCASE_DIR, file), "utf-8");
-            const names = [...content.matchAll(/^export const (\w+)/gm)].map((m) => m[1]);
+            const names = getExports(parse(content, { sourceType: "module" }));
             expect(new Set(names).size, `${file} has a duplicate export`).toBe(names.length);
         }
+    });
+});
+
+describe("regression: GraphQL names that are not valid JavaScript bindings", () => {
+    // Exports are aliased from `$`-prefixed locals, so the GraphQL name never
+    // has to be a legal `const` name, cannot shadow a global the helpers use,
+    // and cannot collide with the module's own identifiers.
+    const loadModule = async (source: string) => {
+        const code = await transformedCode(source, "tests/names.graphql");
+        return (await import(
+            `data:text/javascript;base64,${Buffer.from(code).toString("base64")}`
+        )) as Record<string, any>;
+    };
+
+    it.each(["delete", "new", "class", "let", "static", "await", "yield", "eval", "arguments"])(
+        "exports an operation named %s, a reserved word",
+        async (name) => {
+            const mod = await loadModule(`query ${name} { a }\nquery Other { b }`);
+            expect(mod[name].definitions.map((d: any) => d.name.value)).toEqual([name]);
+            expect(mod._queries[name]).toBe(mod[name]);
+        },
+    );
+
+    it.each(["Set", "Object", "Error"])(
+        "exports a fragment named %s without shadowing the global inside the helpers",
+        async (name) => {
+            const mod = await loadModule(`fragment ${name} on T { a }\nquery Q { ...${name} }`);
+            expect(mod.Q.definitions.map((d: any) => d.name.value)).toEqual(["Q", name]);
+            expect(mod._fragments[name].definitions).toHaveLength(1);
+        },
+    );
+
+    it.each(["graphqlLoaderExtractQuery", "graphqlLoaderUniqueChecker", "_gql_doc", "_gql_source"])(
+        "exports a definition named %s, an identifier the module uses itself",
+        async (name) => {
+            const mod = await loadModule(`query ${name} { a }\nquery Other { b }`);
+            expect(mod[name].definitions.map((d: any) => d.name.value)).toEqual([name]);
+        },
+    );
+
+    it("exports a definition named like a generated import binding", async () => {
+        // Can't be loaded from a data: URL because of the relative import, so
+        // check the emitted module parses and declares both names.
+        const code = await transformedCode(
+            `#import "./frag.gql"\nquery Import___frag_gql { ...Frag }`,
+            "tests/names.graphql",
+        );
+        expect(() => parse(code, { sourceType: "module" })).not.toThrow();
+        expect(code).toContain(`import Import___frag_gql from "./frag.gql"`);
+        expect(code).toContain("export { $Import___frag_gql as Import___frag_gql };");
+    });
+
+    it("keeps a single definition aliased to the document itself", async () => {
+        const mod = await loadModule(`query delete { a }`);
+        expect(mod.delete).toBe(mod.default);
+        expect(mod._queries).toEqual({ delete: mod.default });
     });
 });
 
@@ -576,8 +632,8 @@ describe("regression: v5.1.1 fixes", () => {
         expect(names).toEqual(expect.arrayContaining(["Q", "constructor"]));
     });
 
-    it.each(["_queries", "_fragments", "_gql_source", "_gql_doc"])(
-        "rejects definitions using the reserved name %s",
+    it.each(["_queries", "_fragments", "default"])(
+        "rejects definitions using the reserved name %s, which the module exports itself",
         async (reserved: string) => {
             const source = `fragment ${reserved} on T { a }\nquery Q { ...${reserved} }`;
             await expect(callTransform(source, "tests/reserved.graphql")).rejects.toThrow(
@@ -585,6 +641,12 @@ describe("regression: v5.1.1 fixes", () => {
             );
         },
     );
+
+    it("does not reserve names for type system definitions, which are never exported", async () => {
+        await expect(
+            callTransform(`type _queries { a: Int }`, "tests/schema.graphql"),
+        ).resolves.toBeDefined();
+    });
 });
 
 // Traverse @babel/parser AST to find exports.
@@ -603,6 +665,15 @@ const getExports = (ast: any): string[] => {
                     }
                 });
             }
+            // `export { $local as name }`
+            path.node.specifiers.forEach((specifier) => {
+                if (specifier.type === "ExportSpecifier") {
+                    const { exported } = specifier;
+                    foundExports.push(
+                        exported.type === "Identifier" ? exported.name : exported.value,
+                    );
+                }
+            });
         },
         ExportDefaultDeclaration() {
             foundExports.push("default");

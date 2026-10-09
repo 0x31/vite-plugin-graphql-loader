@@ -20,6 +20,13 @@ import backtickDoc from "./graphql/backtick.graphql";
 // 8. Vite's own ?raw and ?url handling has to win over the loader
 import rawSource from "./graphql/basic.gql?raw";
 import fileUrl from "./graphql/basic.gql?url";
+// 9. Operation names that are JavaScript reserved words or globals
+import {
+    delete as deleteDoc,
+    new as newDoc,
+    Object as objectDoc,
+    _queries as reservedQueries,
+} from "./graphql/reserved.gql";
 
 function assert(condition: boolean, message: string): asserts condition {
     if (!condition) throw new Error("FAIL: " + message);
@@ -92,7 +99,17 @@ assert(typeof rawSource === "string", "?raw: should be the file's text");
 assert(rawSource.includes("users"), "?raw: should contain the query text");
 assert(typeof fileUrl === "string", "?url: should be a URL string");
 
-// --- 9. Round-trip through graphql's print() to verify spec-compliant DocumentNodes ---
+// --- 9. Reserved words and globals as operation names ---
+assertDocument(deleteDoc, "reserved: delete");
+assertDocument(newDoc, "reserved: new");
+assert(reservedQueries.delete === deleteDoc, "reserved: _queries.delete should be the export");
+assert(
+    objectDoc.definitions.map((d) => ("name" in d && d.name?.value) || null).join(",") ===
+        "Object,Set",
+    "reserved: query Object should carry fragment Set",
+);
+
+// --- 10. Round-trip through graphql's print() to verify spec-compliant DocumentNodes ---
 const printedBasic = print(basicDoc);
 assert(printedBasic.includes("users"), "print(basic): should contain 'users' field");
 

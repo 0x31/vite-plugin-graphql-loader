@@ -1,0 +1,21 @@
+# Operation names that are JavaScript reserved words or globals. The emitted
+# module has to alias them rather than declare `const delete`.
+mutation delete($id: ID!) {
+    deleteUser(id: $id)
+}
+
+query new {
+    users {
+        id
+    }
+}
+
+fragment Set on User {
+    id
+}
+
+query Object {
+    users {
+        ...Set
+    }
+}
