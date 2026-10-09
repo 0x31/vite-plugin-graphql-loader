@@ -11,6 +11,7 @@ import { transformGraphQL } from "../packages/core/src/index.js";
 
 import MultiQuery, { _queries, _fragments } from "./testcases/basic/test5.graphql";
 import WithImport, { _queries as _importedQueries } from "./testcases/imports/test18.gql";
+import rawText from "./testcases/basic/test1.gql?raw";
 
 const TESTCASE_DIR = "tests/testcases";
 const MULTI_QUERY_FIXTURE = "basic/test5.graphql";
@@ -31,6 +32,12 @@ describe("bun-graphql-loader", () => {
         expect(MultiQuery.kind).toBe(Kind.DOCUMENT);
         expect(Object.keys(_queries).sort()).toEqual(["TestQuery", "TestQuery2"]);
         expect(Object.keys(_fragments)).toEqual(["TestFragment"]);
+    });
+
+    it("leaves a ?raw import to Bun, which serves the file as text", async () => {
+        // The filter used to accept any query suffix and then tried to open
+        // the literal path `test1.gql?raw`, which does not exist.
+        expect(rawText).toBe(await readFile(join(TESTCASE_DIR, "basic/test1.gql"), "utf-8"));
     });
 
     it("exports each operation under its own name", async () => {
@@ -99,17 +106,35 @@ describe("bun-graphql-loader", () => {
     });
 
     // Inspect the inline map directly. Bun 1.3.13 does not compose it into build maps.
-    const runOnLoad = async (path: string, options?: Parameters<typeof bunGraphqlLoader>[0]) => {
-        let callback: ((args: { path: string }) => Promise<{ contents: string }>) | undefined;
+    const registerOnLoad = (options?: Parameters<typeof bunGraphqlLoader>[0]) => {
+        let registered:
+            | {
+                  filter: RegExp;
+                  callback: (args: { path: string }) => Promise<{ contents: string }>;
+              }
+            | undefined;
         const builder = {
-            onLoad: (_constraints: unknown, cb: typeof callback) => {
-                callback = cb;
+            onLoad: (
+                constraints: { filter: RegExp },
+                cb: NonNullable<typeof registered>["callback"],
+            ) => {
+                registered = { filter: constraints.filter, callback: cb };
             },
         };
         void bunGraphqlLoader(options).setup(builder as never);
-        if (!callback) throw new Error("plugin did not register an onLoad hook");
-        return callback({ path });
+        if (!registered) throw new Error("plugin did not register an onLoad hook");
+        return registered;
     };
+    const runOnLoad = (path: string, options?: Parameters<typeof bunGraphqlLoader>[0]) =>
+        registerOnLoad(options).callback({ path });
+
+    it("registers a filter that matches the extension but not a query suffix", () => {
+        const { filter } = registerOnLoad();
+        expect(filter.test("/app/q.graphql")).toBe(true);
+        expect(filter.test("/app/q.gql")).toBe(true);
+        expect(filter.test("/app/q.graphql?raw")).toBe(false);
+        expect(filter.test("/app/q.graphqls")).toBe(false);
+    });
 
     it("inlines a map containing the original GraphQL filename and source", async () => {
         const path = join(TESTCASE_DIR, MULTI_QUERY_FIXTURE);

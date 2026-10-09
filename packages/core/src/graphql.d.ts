@@ -13,3 +13,9 @@ declare module "*.graphql" {
     export const _queries: Record<string, import("graphql").DocumentNode>;
     export const _fragments: Record<string, import("graphql").FragmentDefinitionNode>;
 }
+
+// Bun serves `?raw` imports as text, bypassing the loader.
+declare module "*.gql?raw" {
+    const source: string;
+    export default source;
+}

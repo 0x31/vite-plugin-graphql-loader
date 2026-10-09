@@ -1,12 +1,13 @@
 import type { BunPlugin, PluginBuilder } from "bun";
 import { relative } from "node:path";
-import {
-    GRAPHQL_FILE_REGEX,
-    transformGraphQL,
-    type GraphqlLoaderOptions,
-} from "../../core/src/index.js";
+import { transformGraphQL, type GraphqlLoaderOptions } from "../../core/src/index.js";
 
 export type { GraphqlLoaderOptions };
+
+// Bun hands the import specifier's query string through in `args.path`, so a
+// filter that accepted `?raw` would try to open `q.graphql?raw` as a file.
+// Leaving the query out lets Bun serve those imports itself, as text.
+const GRAPHQL_FILE_REGEX = /\.(?:gql|graphql)$/;
 
 // Bun 1.3.13 does not compose this inline map into Bun.build output maps.
 const inlineSourceMap = (code: string, map: { toString(): string }): string => {
