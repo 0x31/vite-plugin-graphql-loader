@@ -36,6 +36,11 @@ jobs:
             - run: bun run typecheck
             - run: bun run test:run
             - run: bun run build
+            - name: Declarations must name only types the oldest supported graphql exports
+              # An inferred type spells out every node kind, including kinds
+              # added after graphql 16.0, and consumers on older 16.x then
+              # fail to type-check our .d.ts. Explicit annotations avoid that.
+              run: '! grep -rn ''import("graphql")'' packages/*/dist --include=*.d.ts'
             - name: Integration test
               working-directory: integration-test
               # `bun add` must come before the install: running it against an

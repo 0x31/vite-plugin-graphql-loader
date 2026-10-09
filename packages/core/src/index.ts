@@ -4,4 +4,3 @@ export {
     type GraphqlLoaderOptions,
     type TransformResult,
 } from "./transform.js";
-export { graphqlLoaderUniqueChecker, graphqlLoaderExtractQuery } from "./snippets.js";

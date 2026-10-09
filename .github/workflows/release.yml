@@ -37,6 +37,8 @@ jobs:
             - run: bun run typecheck
             - run: bun run test:run
             - run: bun run build
+            - name: Declarations must name only types the oldest supported graphql exports
+              run: '! grep -rn ''import("graphql")'' packages/*/dist --include=*.d.ts'
             - name: Integration test
               working-directory: integration-test
               run: |

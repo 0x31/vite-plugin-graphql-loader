@@ -12,7 +12,10 @@ import type { ASTNode, DefinitionNode, DocumentNode } from "graphql";
 // Source: https://github.com/apollographql/graphql-tag/blob/main/loader.js
 // License: MIT (https://github.com/apollographql/graphql-tag/blob/main/LICENSE)
 
-export const graphqlLoaderUniqueChecker = (defs: DefinitionNode[]) => {
+// Both helpers carry explicit return types: an inferred one spells out every
+// node kind, including kinds newer than the oldest `graphql` the peer range
+// allows, and the shipped declarations then fail to type-check against it.
+export const graphqlLoaderUniqueChecker = (defs: DefinitionNode[]): DefinitionNode[] => {
     // `Object.create(null)` so property lookups don't hit Object.prototype —
     // a fragment named `constructor` or `toString` would otherwise be falsely
     // reported as a duplicate and dropped on its first occurrence.
@@ -29,7 +32,10 @@ export const graphqlLoaderUniqueChecker = (defs: DefinitionNode[]) => {
     });
 };
 
-export const graphqlLoaderExtractQuery = (doc: DocumentNode, operationName: string) => {
+export const graphqlLoaderExtractQuery = (
+    doc: DocumentNode,
+    operationName: string,
+): DocumentNode => {
     // Recursively navigate node tree to find references to fragments.
     const collectFragmentReferences = (node: ASTNode, refs: Set<string>) => {
         if (node.kind === "FragmentSpread") {
@@ -93,9 +99,8 @@ export const graphqlLoaderExtractQuery = (doc: DocumentNode, operationName: stri
     // `loc.source.body` rather than printing the document (urql's
     // `stringifyDocument`, for one) would send every operation in the file.
     const { loc: _wholeFileLoc, ...docWithoutLoc } = doc;
-    const newDoc = Object.assign({}, docWithoutLoc, {
-        definitions: [rootOperation],
-    });
+    const definitions: DefinitionNode[] = [rootOperation];
+    const newDoc: DocumentNode = { ...docWithoutLoc, definitions };
 
     // Now, for the operation we're running, find any fragments referenced by
     // it or the fragments it references.
@@ -124,7 +129,7 @@ export const graphqlLoaderExtractQuery = (doc: DocumentNode, operationName: stri
     allRefs.forEach((refName) => {
         const op = findOperation(doc, refName);
         if (op) {
-            newDoc.definitions.push(op);
+            definitions.push(op);
         }
     });
 

@@ -88,7 +88,11 @@ const graphqlLoaderExtractQuery = (doc, operationName) => {
 	// `loc.source.body` rather than printing the document (urql's
 	// `stringifyDocument`, for one) would send every operation in the file.
 	const { loc: _wholeFileLoc, ...docWithoutLoc } = doc;
-	const newDoc = Object.assign({}, docWithoutLoc, { definitions: [rootOperation] });
+	const definitions = [rootOperation];
+	const newDoc = {
+		...docWithoutLoc,
+		definitions
+	};
 	// Now, for the operation we're running, find any fragments referenced by
 	// it or the fragments it references.
 	const opRefs = definitionRefs[operationName] || new Set();
@@ -113,7 +117,7 @@ const graphqlLoaderExtractQuery = (doc, operationName) => {
 	allRefs.forEach((refName) => {
 		const op = findOperation(doc, refName);
 		if (op) {
-			newDoc.definitions.push(op);
+			definitions.push(op);
 		}
 	});
 	return newDoc;
