@@ -93,7 +93,10 @@ describe("bun-graphql-loader", () => {
 
         expect(definitionNames(mod.default)).toEqual(["F", "Q"]);
         expect(definitionNames(mod.Q)).toEqual(["Q", "F"]);
-        expect(mod.default.loc.source.body).toBe(source);
+        // Rebuilt from the surviving definitions rather than the file text.
+        expect(mod.default.loc.source.body).toBe(
+            "fragment F on Query { field }\n\nquery Q { ...F }",
+        );
     });
 
     it("generates a source map unless noSourceMap is set", () => {

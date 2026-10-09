@@ -14,9 +14,31 @@ query TestQuery2 {
     }
 }
 `;
-const _gql_doc = {"kind":"Document","definitions":[{"kind":"FragmentDefinition","name":{"kind":"Name","value":"TestFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"test"}},"directives":[],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"},"arguments":[],"directives":[]}]}},{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"TestQuery"},"variableDefinitions":[],"directives":[],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"test"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"name"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"StringValue","value":"\\`a","block":false}}]}}]}}],"directives":[],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"TestFragment"},"directives":[]}]}}]}},{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"TestQuery2"},"variableDefinitions":[],"directives":[],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"test"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"name"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"StringValue","value":"test","block":false}}]}}]}}],"directives":[],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"TestFragment"},"directives":[]}]}}]}}],"loc":{"start":0,"end":236}};
+const _gql_doc = {"kind":"Document","definitions":[{"kind":"FragmentDefinition","name":{"kind":"Name","value":"TestFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"test"}},"directives":[],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"},"arguments":[],"directives":[]}]},"loc":{"start":0,"end":42}},{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"TestQuery"},"variableDefinitions":[],"directives":[],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"test"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"name"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"StringValue","value":"\\`a","block":false}}]}}]}}],"directives":[],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"TestFragment"},"directives":[]}]}}]},"loc":{"start":44,"end":138}},{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"TestQuery2"},"variableDefinitions":[],"directives":[],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"test"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"name"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"StringValue","value":"test","block":false}}]}}]}}],"directives":[],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"TestFragment"},"directives":[]}]}}]},"loc":{"start":140,"end":235}}],"loc":{"start":0,"end":236}};
 _gql_doc.loc.source = {"name":"GraphQL request","locationOffset":{"line":1,"column":1}};
 _gql_doc.loc.source.body = _gql_source;
+_gql_doc.definitions.forEach((def) => Object.defineProperty(def.loc, "source", { value: _gql_doc.loc.source }));
+const graphqlLoaderSourceLoc = (definitions) => {
+	const parts = [];
+	for (const definition of definitions) {
+		const loc = definition.loc;
+		if (!loc || !loc.source) return undefined;
+		parts.push(loc.source.body.slice(loc.start, loc.end));
+	};
+	const body = parts.join("\n\n");
+	return {
+		start: 0,
+		end: body.length,
+		source: {
+			body,
+			name: "GraphQL request",
+			locationOffset: {
+				line: 1,
+				column: 1
+			}
+		}
+	};
+};
 const graphqlLoaderExtractQuery = (doc, operationName) => {
 	// Recursively navigate node tree to find references to fragments.
 	const collectFragmentReferences = (node, refs) => {
@@ -70,16 +92,7 @@ const graphqlLoaderExtractQuery = (doc, operationName) => {
 	if (!rootOperation) {
 		throw new Error(`graphql-loader: operation "${operationName}" not found in document`);
 	};
-	// Copy the DocumentNode, but clear out the definitions. `loc` is left
-	// behind on purpose: it describes the whole file, and clients that read
-	// `loc.source.body` rather than printing the document (urql's
-	// `stringifyDocument`, for one) would send every operation in the file.
-	const { loc: _wholeFileLoc, ...docWithoutLoc } = doc;
 	const definitions = [rootOperation];
-	const newDoc = {
-		...docWithoutLoc,
-		definitions
-	};
 	// Now, for the operation we're running, find any fragments referenced by
 	// it or the fragments it references.
 	const opRefs = definitionRefs[operationName] || new Set();
@@ -107,7 +120,20 @@ const graphqlLoaderExtractQuery = (doc, operationName) => {
 			definitions.push(op);
 		}
 	});
-	return newDoc;
+	// The file's `loc` describes every definition in the file, so the new
+	// document gets one describing only its own. Clients that send
+	// `loc.source.body` rather than printing (urql, graphql-tag's `gql`)
+	// would otherwise send every operation in the file.
+	const { loc: _wholeFileLoc, ...docWithoutLoc } = doc;
+	const loc = graphqlLoaderSourceLoc(definitions);
+	return loc ? {
+		...docWithoutLoc,
+		definitions,
+		loc
+	} : {
+		...docWithoutLoc,
+		definitions
+	};
 };
 const $TestFragment = graphqlLoaderExtractQuery(_gql_doc, "TestFragment");
 export { $TestFragment as TestFragment };

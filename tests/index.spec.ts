@@ -1,6 +1,7 @@
 import { expect, describe, it } from "vitest";
 import { parse } from "@babel/parser";
 import traverse from "@babel/traverse";
+import { gql } from "graphql-tag";
 
 import vitePluginGraphqlLoader from "../packages/vite/src/index.js";
 import { readFile, readdir, rm, writeFile } from "fs/promises";
@@ -212,7 +213,7 @@ describe("regression: v5.1.0 fixes", () => {
     });
 
     it("emits only LF newlines (no CRLF) so source maps stay valid on Windows", async () => {
-        const code = await transformedCode(`query Q { field }`, "tests/x.graphql");
+        const code = await transformedCode(`query Q {\r\n    field\r\n}\r\n`, "tests/x.graphql");
         expect(code).not.toContain("\r");
     });
 
@@ -244,7 +245,9 @@ describe("regression: emitted source locations", () => {
     it("emits loc offsets that match the source body", async () => {
         const source = `query Q {\n    field\n}\n`;
         const code = await transformedCode(source, "tests/loc.graphql");
-        const loc = code.match(/"loc":\{"start":(\d+),"end":(\d+)\}/);
+        // The document's own loc closes the `_gql_doc` literal. Each
+        // definition carries one too, earlier on the line.
+        const loc = code.match(/"loc":\{"start":(\d+),"end":(\d+)\}\};$/m);
         expect(loc).not.toBeNull();
         expect(Number(loc![1])).toBe(0);
         // `loc.source.body` is the raw source, so `loc.end` has to be its
@@ -341,56 +344,86 @@ describe("unit: #import parsing and file matching", () => {
     );
 });
 
-describe("regression: issue #14 extracted documents drop the file's loc", () => {
+describe("regression: issue #14 extracted documents describe only their own text", () => {
     // https://github.com/0x31/vite-plugin-graphql-loader/issues/14
     // Each named export holds only its own operation, but it used to inherit
     // the whole document's `loc`, whose `source.body` is the entire file.
     // Clients that send `loc.source.body` instead of printing (urql's
-    // `stringifyDocument`) then send every operation in the file, so one
-    // invalid operation breaks every import from it.
+    // `stringifyDocument`) then sent every operation in the file, so one
+    // invalid operation broke every import from it. Dropping `loc` instead
+    // would break graphql-tag, whose `gql` reads `loc.source.body` of every
+    // interpolated document with no fallback, so each export gets a `loc`
+    // whose body is assembled from its own definitions.
     const MULTI_OP = `mutation createThing { createThing { id } }\nmutation deleteThing { deleteThing }\n`;
 
+    type Doc = {
+        loc?: { start: number; end: number; source: { body: string } };
+        definitions: { name?: { value: string }; loc?: { source?: { body: string } } }[];
+    };
     const loadModule = async (source: string, id: string) => {
         const code = await transformedCode(source, id);
         return (await import(
             `data:text/javascript;base64,${Buffer.from(code).toString("base64")}`
-        )) as Record<string, { loc?: unknown; definitions: { name?: { value: string } }[] }>;
+        )) as Record<string, Doc>;
     };
 
-    it("omits loc on a named operation export", async () => {
+    it("gives a named operation export a loc holding only its own text", async () => {
         const mod = await loadModule(MULTI_OP, "tests/things.graphql");
+        const doc = mod.createThing!;
 
-        expect(mod.createThing!.definitions.map((d) => d.name?.value)).toEqual(["createThing"]);
-        expect(mod.createThing!.loc).toBeUndefined();
+        expect(doc.definitions.map((d) => d.name?.value)).toEqual(["createThing"]);
+        expect(doc.loc?.source.body).toBe("mutation createThing { createThing { id } }");
+        expect(doc.loc?.end).toBe(doc.loc?.source.body.length);
     });
 
-    it("keeps loc on the default export, where it matches the definitions", async () => {
+    it("keeps the file's loc on the default export, where it matches the definitions", async () => {
         const mod = await loadModule(MULTI_OP, "tests/things.graphql");
-        const doc = mod.default as unknown as {
-            loc: { end: number; source: { body: string } };
-        };
+        const doc = mod.default!;
 
-        expect(doc.loc.source.body).toBe(MULTI_OP);
-        expect(doc.loc.end).toBe(MULTI_OP.length);
+        expect(doc.loc?.source.body).toBe(MULTI_OP);
+        expect(doc.loc?.end).toBe(MULTI_OP.length);
     });
 
-    it("omits loc on an extracted fragment export too", async () => {
-        const mod = await loadModule(
-            `fragment F on T { a }\nquery Q { ...F }`,
-            "tests/frag.graphql",
-        );
-
-        expect(mod.Q!.loc).toBeUndefined();
-        expect(mod.F!.loc).toBeUndefined();
-    });
-
-    it("still carries the operation's own fragments", async () => {
+    it("includes the fragments an operation spreads in its body", async () => {
         const mod = await loadModule(
             `fragment F on T { a }\nquery Q { ...F }\nquery R { b }`,
             "tests/frag.graphql",
         );
 
-        expect(mod.Q!.definitions.map((d) => d.name?.value).sort()).toEqual(["F", "Q"]);
+        expect(mod.Q!.definitions.map((d) => d.name?.value)).toEqual(["Q", "F"]);
+        expect(mod.Q!.loc?.source.body).toBe("query Q { ...F }\n\nfragment F on T { a }");
+        expect(mod.F!.loc?.source.body).toBe("fragment F on T { a }");
+    });
+
+    it("composes an extracted fragment through graphql-tag's gql", async () => {
+        const mod = await loadModule(
+            `fragment F on T { a }\nfragment G on T { b }`,
+            "tests/frags.graphql",
+        );
+
+        // The standard Apollo pattern. `gql` concatenates `loc.source.body`,
+        // so this both needs a `loc` and needs its body to hold just F.
+        const composed = gql`
+            query R {
+                t {
+                    ...F
+                }
+            }
+            ${mod.F}
+        `;
+        const names = composed.definitions.map((d) => ("name" in d ? d.name?.value : null));
+        expect(names).toEqual(["R", "F"]);
+    });
+
+    it("points each definition at its source without making it enumerable", async () => {
+        const mod = await loadModule(MULTI_OP, "tests/things.graphql");
+        const doc = mod.default!;
+
+        // Slicing works, and serializing the document still carries the file
+        // text once rather than once per definition.
+        expect(doc.definitions[0]!.loc?.source?.body).toBe(MULTI_OP);
+        const serialized = JSON.stringify(doc);
+        expect(serialized.split("mutation deleteThing { deleteThing }")).toHaveLength(2);
     });
 });
 
@@ -452,6 +485,19 @@ describe("regression: duplicate definition names", () => {
             expect(() => parse(code, { sourceType: "module" })).not.toThrow();
         },
     );
+
+    it("rebuilds the default export's body without the dropped duplicate", async () => {
+        // The file text still holds both copies, and a client sending it
+        // would get "There can be only one fragment named Frag".
+        const code = await transformedCode(
+            `fragment Frag on T { a }\nfragment Frag on T { a }\nquery Q { ...Frag }`,
+            "tests/dup.graphql",
+        );
+        const mod = await import(
+            `data:text/javascript;base64,${Buffer.from(code).toString("base64")}`
+        );
+        expect(mod.default.loc.source.body).toBe("fragment Frag on T { a }\n\nquery Q { ...Frag }");
+    });
 
     it("rejects different fragments sharing a name", async () => {
         await expect(
@@ -593,6 +639,16 @@ describe("regression: v5.1.1 fixes", () => {
         const evaluated = await emittedGqlSource(code, "bs1");
         expect(evaluated).toBe(source);
         expect(evaluated.length).toBe(source.length);
+    });
+
+    it("preserves CRLF in _gql_source so loc offsets still index the body", async () => {
+        // A template literal normalizes CRLF to LF, which used to leave
+        // `loc.end` past the end of `loc.source.body` on Windows checkouts.
+        const source = `query Q {\r\n    field\r\n}\r\n`;
+        const code = await transformedCode(source, "tests/x.graphql");
+        const evaluated = await emittedGqlSource(code, "crlf");
+        expect(evaluated).toBe(source);
+        expect(code).toMatch(new RegExp(`"loc":\\{"start":0,"end":${source.length}\\}\\};$`, "m"));
     });
 
     it("unique-checker keeps a fragment named 'constructor' (prototype-safe lookup)", () => {

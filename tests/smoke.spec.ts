@@ -6,7 +6,8 @@ import {
     validate,
     type DocumentNode,
 } from "graphql";
-import { print } from "graphql";
+import { parse, print } from "graphql";
+import { gql } from "graphql-tag";
 import { rootValue, schema } from "./smoke/schema.js";
 
 // End-to-end smoke test: take the modules the loader actually emits and put
@@ -25,6 +26,10 @@ const expectValid = (doc: DocumentNode, label: string) => {
         `${label} failed validation`,
     ).toEqual([]);
 };
+
+// How @urql/core's stringifyDocument picks what goes over the wire: it
+// prefers loc.source.body over print().
+const stringifyDocument = (doc: DocumentNode) => doc.loc?.source.body ?? print(doc);
 
 describe("smoke: emitted documents against a real schema", () => {
     it("validates the whole document", () => {
@@ -93,15 +98,36 @@ describe("smoke: emitted documents against a real schema", () => {
     });
 
     it("sends only the requested operation the way a real client would", () => {
-        // How @urql/core's stringifyDocument picks what goes over the wire: it
-        // prefers loc.source.body over print(). Issue #14: extracted documents
-        // used to carry the whole file's loc, so importing one operation sent
-        // every operation in the file, and one invalid operation broke the rest.
-        const stringifyDocument = (doc: DocumentNode) => doc.loc?.source.body ?? print(doc);
-
+        // Issue #14: extracted documents used to carry the whole file's loc,
+        // so importing one operation sent every operation in the file, and
+        // one invalid operation broke the rest.
         const sent = stringifyDocument(_queries.GetPost!);
         expect(sent).toContain("GetPost");
         expect(sent).not.toContain("ListPosts");
+        expectValid(parse(sent), "GetPost as sent");
+    });
+
+    it("sends a default export whose body includes what it #imported", () => {
+        // The file's own text spreads AuthorFields but only the #imported
+        // file defines it, so sending the file text fails with
+        // "Unknown fragment". The body is rebuilt from the merged definitions.
+        const sent = stringifyDocument(PostDocument);
+        expect(sent).toContain("fragment AuthorFields");
+        expectValid(parse(sent), "post.graphql default export as sent");
+    });
+
+    it("composes an #imported fragment through graphql-tag's gql", () => {
+        // Apollo's usual pattern. gql concatenates loc.source.body, so the
+        // fragment export has to carry one, and it has to bring AuthorFields.
+        const composed = gql`
+            query Titles {
+                posts {
+                    ...PostSummary
+                }
+            }
+            ${_fragments.PostSummary}
+        `;
+        expectValid(composed, "gql composition");
     });
 
     it("exposes the fragments, and a fragment-only file stays valid", () => {

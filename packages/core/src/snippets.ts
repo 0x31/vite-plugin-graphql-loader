@@ -6,7 +6,7 @@
 // `.toString()`, which will return the JavaScript version compiled by the
 // TypeScript compiler.
 
-import type { ASTNode, DefinitionNode, DocumentNode } from "graphql";
+import type { ASTNode, DefinitionNode, DocumentNode, Location } from "graphql";
 
 // Snippets are modified from `graphql-tag/loader.js`
 // Source: https://github.com/apollographql/graphql-tag/blob/main/loader.js
@@ -30,6 +30,27 @@ export const graphqlLoaderUniqueChecker = (defs: DefinitionNode[]): DefinitionNo
             return true;
         }
     });
+};
+
+// A `loc` for a document assembled from these definitions, with a body made
+// of each definition's own text. Every definition the loader emits carries
+// the offsets of its text and a reference to the source it came from, so the
+// body matches the definitions even when they come from several files.
+export const graphqlLoaderSourceLoc = (
+    definitions: readonly DefinitionNode[],
+): Location | undefined => {
+    const parts: string[] = [];
+    for (const definition of definitions) {
+        const loc = definition.loc;
+        if (!loc || !loc.source) return undefined;
+        parts.push(loc.source.body.slice(loc.start, loc.end));
+    }
+    const body = parts.join("\n\n");
+    return {
+        start: 0,
+        end: body.length,
+        source: { body, name: "GraphQL request", locationOffset: { line: 1, column: 1 } },
+    } as unknown as Location;
 };
 
 export const graphqlLoaderExtractQuery = (
@@ -94,13 +115,7 @@ export const graphqlLoaderExtractQuery = (
         throw new Error(`graphql-loader: operation "${operationName}" not found in document`);
     }
 
-    // Copy the DocumentNode, but clear out the definitions. `loc` is left
-    // behind on purpose: it describes the whole file, and clients that read
-    // `loc.source.body` rather than printing the document (urql's
-    // `stringifyDocument`, for one) would send every operation in the file.
-    const { loc: _wholeFileLoc, ...docWithoutLoc } = doc;
     const definitions: DefinitionNode[] = [rootOperation];
-    const newDoc: DocumentNode = { ...docWithoutLoc, definitions };
 
     // Now, for the operation we're running, find any fragments referenced by
     // it or the fragments it references.
@@ -133,5 +148,11 @@ export const graphqlLoaderExtractQuery = (
         }
     });
 
-    return newDoc;
+    // The file's `loc` describes every definition in the file, so the new
+    // document gets one describing only its own. Clients that send
+    // `loc.source.body` rather than printing (urql, graphql-tag's `gql`)
+    // would otherwise send every operation in the file.
+    const { loc: _wholeFileLoc, ...docWithoutLoc } = doc;
+    const loc = graphqlLoaderSourceLoc(definitions);
+    return loc ? { ...docWithoutLoc, definitions, loc } : { ...docWithoutLoc, definitions };
 };

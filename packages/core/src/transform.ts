@@ -7,7 +7,11 @@ import {
     print,
 } from "graphql";
 import MagicString, { SourceMap, SourceMapOptions } from "magic-string";
-import { graphqlLoaderUniqueChecker, graphqlLoaderExtractQuery } from "./snippets.js";
+import {
+    graphqlLoaderUniqueChecker,
+    graphqlLoaderExtractQuery,
+    graphqlLoaderSourceLoc,
+} from "./snippets.js";
 
 // The definition kinds that become a named export.
 type NamedDefinition = OperationDefinitionNode | FragmentDefinitionNode;
@@ -18,9 +22,10 @@ const DOC_NAME = "_gql_doc";
 // would declare a second export of the same name.
 const RESERVED_NAMES = new Set(["default", "_queries", "_fragments"]);
 
-// Drop `loc` from every node below the document root. Keeping them would
-// roughly double the size of the emitted document for no benefit, and it
-// matches the shape `graphql-tag` produced before this loader parsed directly.
+// Drop `loc` from every node below the top-level definitions. Keeping them all
+// would roughly double the size of the emitted document. A definition keeps
+// its own `{start, end}` so its text can be sliced back out of the source
+// when documents are assembled from several definitions at runtime.
 const stripNestedLoc = (value: unknown): void => {
     if (Array.isArray(value)) {
         value.forEach(stripNestedLoc);
@@ -152,6 +157,7 @@ export const transformGraphQL = (
     }
 
     // Preserve fragment deduplication without ignoring differences inside string values.
+    const definitionCount = documentNode.definitions.length;
     const seenNames = new Map<string, NamedDefinition>();
     documentNode = {
         ...documentNode,
@@ -180,31 +186,31 @@ export const transformGraphQL = (
             return true;
         }),
     };
+    const deduplicated = documentNode.definitions.length !== definitionCount;
 
-    // MagicString is used to generate the source map. Order matters: escape
-    // backslashes first so the subsequent backtick and `${` escape insertions
-    // are themselves preserved verbatim in the emitted template literal
-    // (otherwise `\${` would round-trip as just `${` and re-introduce the
-    // interpolation bug).
+    // MagicString is used to generate the source map. Each replacement is
+    // matched against the original string, so they can't interfere with each
+    // other. `\r` is escaped because a template literal would otherwise
+    // normalize CRLF to LF, leaving `loc` offsets pointing past the body.
     const outputCode = new MagicString(source)
         .replaceAll("\\", "\\\\")
         .replaceAll("`", "\\`")
-        .replaceAll("${", "\\${");
+        .replaceAll("${", "\\${")
+        .replaceAll("\r", "\\r");
 
     outputCode.prepend(`const _gql_source = \``);
     // ORIGINAL SOURCE CODE ENDS UP BETWEEN THESE TWO LINES, AS A JS STRING.
     outputCode.append(`\`;\n`);
 
-    // Convert document node to plain object. Strip the top-level `loc.source`
-    // so we can re-attach it in emitted code with `body` pointing at the
-    // source-mapped `_gql_source` constant. Doing this via post-stringify
-    // string replacement would be fragile if the user's GraphQL source
-    // happened to contain the sentinel.
+    // Convert the document to a plain object. graphql's `Location.toJSON`
+    // leaves `source` out, so it is re-attached in emitted code with `body`
+    // pointing at the source-mapped `_gql_source` constant.
     const documentObject = JSON.parse(JSON.stringify(documentNode));
     const topLoc = documentNode.loc;
-    stripNestedLoc(documentObject.definitions);
-    if (documentObject.loc) {
-        delete documentObject.loc.source;
+    for (const definition of documentObject.definitions) {
+        for (const [key, value] of Object.entries(definition)) {
+            if (key !== "loc") stripNestedLoc(value);
+        }
     }
 
     outputCode.append(`const ${DOC_NAME} = ${JSON.stringify(documentObject)};\n`);
@@ -216,10 +222,29 @@ export const transformGraphQL = (
             })};\n`,
         );
         outputCode.append(`${DOC_NAME}.loc.source.body = _gql_source;\n`);
+        // Each definition points at the source it was sliced from, so a
+        // document assembled from several files can rebuild its body. Not
+        // enumerable, so serializing a document doesn't repeat the file once
+        // per definition.
+        outputCode.append(
+            `${DOC_NAME}.definitions.forEach((def) => Object.defineProperty(def.loc, "source", { value: ${DOC_NAME}.loc.source }));\n`,
+        );
     }
 
     // Resolve #import statements.
     const { imports, importAppends } = expandImports(source);
+    const extractQueries =
+        documentNode.definitions.filter(isNamedDefinition).length > 1 || imports.length > 0;
+
+    // Once definitions are merged in from other files, or dropped as
+    // duplicates, the file's text no longer describes the document. Rebuild
+    // `loc.source.body` from the definitions for clients that send it rather
+    // than printing (urql's `stringifyDocument`, graphql-tag's `gql`).
+    if (extractQueries || deduplicated) {
+        outputCode.append(
+            `const ${graphqlLoaderSourceLoc.name} = ${graphqlLoaderSourceLoc.toString()};\n`,
+        );
+    }
     if (imports.length) {
         outputCode.prepend(imports.join(""));
         outputCode.append(
@@ -227,13 +252,17 @@ export const transformGraphQL = (
         );
         outputCode.append(importAppends.join(""));
     }
+    if (imports.length || deduplicated) {
+        outputCode.append(
+            `${DOC_NAME}.loc = ${graphqlLoaderSourceLoc.name}(${DOC_NAME}.definitions);\n`,
+        );
+    }
 
     // Allow multiple query/mutation definitions in a file. This parses out
     // dependencies at compile time, and then uses those at load time to create
     // minimal query documents. We cannot do the latter at compile time due to
     // how the #import code works.
     const namedDefinitions = documentNode.definitions.filter(isNamedDefinition);
-    const extractQueries = namedDefinitions.length > 1 || imports.length > 0;
     if (namedDefinitions.length > 0 && extractQueries) {
         outputCode.append(
             `const ${graphqlLoaderExtractQuery.name} = ${graphqlLoaderExtractQuery.toString()};\n`,

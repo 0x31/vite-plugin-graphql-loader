@@ -12,9 +12,31 @@ query ImportingQuery {
     }
 }
 `;
-const _gql_doc = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"ImportingQuery"},"variableDefinitions":[],"directives":[],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"test"},"arguments":[],"directives":[],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"Frag1"},"directives":[]}]}}]}}],"loc":{"start":0,"end":311}};
+const _gql_doc = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"ImportingQuery"},"variableDefinitions":[],"directives":[],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"test"},"arguments":[],"directives":[],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"Frag1"},"directives":[]}]}}]},"loc":{"start":252,"end":310}}],"loc":{"start":0,"end":311}};
 _gql_doc.loc.source = {"name":"GraphQL request","locationOffset":{"line":1,"column":1}};
 _gql_doc.loc.source.body = _gql_source;
+_gql_doc.definitions.forEach((def) => Object.defineProperty(def.loc, "source", { value: _gql_doc.loc.source }));
+const graphqlLoaderSourceLoc = (definitions) => {
+	const parts = [];
+	for (const definition of definitions) {
+		const loc = definition.loc;
+		if (!loc || !loc.source) return undefined;
+		parts.push(loc.source.body.slice(loc.start, loc.end));
+	};
+	const body = parts.join("\n\n");
+	return {
+		start: 0,
+		end: body.length,
+		source: {
+			body,
+			name: "GraphQL request",
+			locationOffset: {
+				line: 1,
+				column: 1
+			}
+		}
+	};
+};
 const graphqlLoaderUniqueChecker = (defs) => {
 	// `Object.create(null)` so property lookups don't hit Object.prototype —
 	// a fragment named `constructor` or `toString` would otherwise be falsely
@@ -33,6 +55,7 @@ const graphqlLoaderUniqueChecker = (defs) => {
 };
 _gql_doc.definitions = graphqlLoaderUniqueChecker(_gql_doc.definitions.concat(Import____fragment__gql.definitions));
 _gql_doc.definitions = graphqlLoaderUniqueChecker(_gql_doc.definitions.concat(Import____fragment__gql_.definitions));
+_gql_doc.loc = graphqlLoaderSourceLoc(_gql_doc.definitions);
 const graphqlLoaderExtractQuery = (doc, operationName) => {
 	// Recursively navigate node tree to find references to fragments.
 	const collectFragmentReferences = (node, refs) => {
@@ -86,16 +109,7 @@ const graphqlLoaderExtractQuery = (doc, operationName) => {
 	if (!rootOperation) {
 		throw new Error(`graphql-loader: operation "${operationName}" not found in document`);
 	};
-	// Copy the DocumentNode, but clear out the definitions. `loc` is left
-	// behind on purpose: it describes the whole file, and clients that read
-	// `loc.source.body` rather than printing the document (urql's
-	// `stringifyDocument`, for one) would send every operation in the file.
-	const { loc: _wholeFileLoc, ...docWithoutLoc } = doc;
 	const definitions = [rootOperation];
-	const newDoc = {
-		...docWithoutLoc,
-		definitions
-	};
 	// Now, for the operation we're running, find any fragments referenced by
 	// it or the fragments it references.
 	const opRefs = definitionRefs[operationName] || new Set();
@@ -123,7 +137,20 @@ const graphqlLoaderExtractQuery = (doc, operationName) => {
 			definitions.push(op);
 		}
 	});
-	return newDoc;
+	// The file's `loc` describes every definition in the file, so the new
+	// document gets one describing only its own. Clients that send
+	// `loc.source.body` rather than printing (urql, graphql-tag's `gql`)
+	// would otherwise send every operation in the file.
+	const { loc: _wholeFileLoc, ...docWithoutLoc } = doc;
+	const loc = graphqlLoaderSourceLoc(definitions);
+	return loc ? {
+		...docWithoutLoc,
+		definitions,
+		loc
+	} : {
+		...docWithoutLoc,
+		definitions
+	};
 };
 const $ImportingQuery = graphqlLoaderExtractQuery(_gql_doc, "ImportingQuery");
 export { $ImportingQuery as ImportingQuery };
