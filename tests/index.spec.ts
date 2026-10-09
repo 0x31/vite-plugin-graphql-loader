@@ -509,6 +509,24 @@ describe("regression: anonymous operations", () => {
         expect(code).toMatch(/export \{ \$G as G \};/);
     });
 
+    it("extracts a lone fragment on its own beside an anonymous operation", async () => {
+        // Extraction used to be decided by the number of named definitions,
+        // so a single fragment was exported as the whole document, anonymous
+        // operation included, and composing it elsewhere failed validation.
+        const code = await transformedCode(
+            `fragment F on T { a }\n{ t { ...F } }`,
+            "tests/anon.graphql",
+        );
+        const mod = await import(
+            `data:text/javascript;base64,${Buffer.from(code).toString("base64")}`
+        );
+        expect(mod.F.definitions.map((d: { kind: string }) => d.kind)).toEqual([
+            "FragmentDefinition",
+        ]);
+        expect(mod.F.loc.source.body).toBe("fragment F on T { a }");
+        expect(mod.default.definitions).toHaveLength(2);
+    });
+
     it("rejects two anonymous operations", async () => {
         // This was the content of the old continued/test13 fixture, which the
         // loader accepted even though no GraphQL server would.

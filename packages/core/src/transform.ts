@@ -247,8 +247,13 @@ export const transformGraphQL = (
 
     // Resolve #import statements.
     const { imports, importAppends } = expandImports(text);
+
+    // A named export is the whole document only when that document holds
+    // nothing else. Anything more, including an anonymous operation beside a
+    // lone fragment, is extracted so each export describes just itself.
+    const namedDefinitions = documentNode.definitions.filter(isNamedDefinition);
     const extractQueries =
-        documentNode.definitions.filter(isNamedDefinition).length > 1 || imports.length > 0;
+        namedDefinitions.length > 0 && (documentNode.definitions.length > 1 || imports.length > 0);
 
     // Once definitions are merged in from other files, or dropped as
     // duplicates, the file's text no longer describes the document. Rebuild
@@ -276,8 +281,7 @@ export const transformGraphQL = (
     // dependencies at compile time, and then uses those at load time to create
     // minimal query documents. We cannot do the latter at compile time due to
     // how the #import code works.
-    const namedDefinitions = documentNode.definitions.filter(isNamedDefinition);
-    if (namedDefinitions.length > 0 && extractQueries) {
+    if (extractQueries) {
         outputCode.append(
             `const ${graphqlLoaderExtractQuery.name} = ${graphqlLoaderExtractQuery.toString()};\n`,
         );

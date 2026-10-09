@@ -14,27 +14,6 @@ const _gql_doc = {"kind":"Document","definitions":[{"kind":"OperationDefinition"
 _gql_doc.loc.source = {"name":"GraphQL request","locationOffset":{"line":1,"column":1}};
 _gql_doc.loc.source.body = _gql_source;
 _gql_doc.definitions.forEach((def) => Object.defineProperty(def.loc, "source", { value: _gql_doc.loc.source }));
-const graphqlLoaderSourceLoc = (definitions) => {
-	const parts = [];
-	for (const definition of definitions) {
-		const loc = definition.loc;
-		if (!loc || !loc.source) return undefined;
-		parts.push(loc.source.body.slice(loc.start, loc.end));
-	};
-	const body = parts.join("\n\n");
-	return {
-		start: 0,
-		end: body.length,
-		source: {
-			body,
-			name: "GraphQL request",
-			locationOffset: {
-				line: 1,
-				column: 1
-			}
-		}
-	};
-};
 const graphqlLoaderUniqueChecker = (defs) => {
 	// `Object.create(null)` so property lookups don't hit Object.prototype: a
 	// fragment named `constructor` or `toString` would otherwise be falsely
