@@ -42,7 +42,7 @@ function assertDocument(doc: DocumentNode, label: string): void {
 // Verify TypeScript types are correct at compile time
 const _typeCheck1: DocumentNode = basicDoc;
 const _typeCheck2: Record<string, DocumentNode> = multiQueries;
-const _typeCheck3: Record<string, unknown> = multiFragments;
+const _typeCheck3: Record<string, DocumentNode> = multiFragments;
 void _typeCheck1;
 void _typeCheck2;
 void _typeCheck3;

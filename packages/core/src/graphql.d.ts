@@ -3,7 +3,7 @@ declare module "*.gql" {
     export default Query;
 
     export const _queries: Record<string, import("graphql").DocumentNode>;
-    export const _fragments: Record<string, import("graphql").FragmentDefinitionNode>;
+    export const _fragments: Record<string, import("graphql").DocumentNode>;
 }
 
 declare module "*.graphql" {
@@ -11,7 +11,7 @@ declare module "*.graphql" {
     export default Query;
 
     export const _queries: Record<string, import("graphql").DocumentNode>;
-    export const _fragments: Record<string, import("graphql").FragmentDefinitionNode>;
+    export const _fragments: Record<string, import("graphql").DocumentNode>;
 }
 
 // Bun serves `?raw` imports as text, bypassing the loader.

@@ -96,36 +96,45 @@ declare module "*.gql" {
     const Query: import("graphql").DocumentNode;
     export default Query;
     export const _queries: Record<string, import("graphql").DocumentNode>;
-    export const _fragments: Record<string, import("graphql").FragmentDefinitionNode>;
+    export const _fragments: Record<string, import("graphql").DocumentNode>;
 }
 ```
 
-And then import fragments and queries like so in order to type them as `DocumentNode` and `FragmentDefinitionNode` objects.
+Every export is a `DocumentNode`. A fragment export is a document holding that fragment and the fragments it spreads, which is what `gql` interpolation and fragment composition expect.
 
 ```typescript
 import Document, { _queries, _fragments } from "./example.graphql";
 console.log(Document); // Has type `DocumentNode`
 console.log(_queries.ExampleQuery); // Has type `DocumentNode`
-console.log(_fragments.ExampleFragment); // Has type `FragmentDefinitionNode`
+console.log(_fragments.ExampleFragment); // Has type `DocumentNode`
+```
+
+An operation whose name is a JavaScript reserved word has to be renamed on import:
+
+```typescript
+import { delete as deleteThing } from "./things.graphql";
 ```
 
 ## Changelog
 
 **_v5.3.0_**:
 
-- **Fix**: named operation exports no longer carry the whole file's `loc` (fixes #14). Each export already held only its own operation, but it inherited the document's `loc`, whose `source.body` is the entire file. Clients that send `loc.source.body` instead of printing the document, such as urql's `stringifyDocument`, therefore sent every operation in the file, so a single invalid operation broke every import from it. Extracted documents now omit `loc`, and the default export keeps it because there it matches the definitions.
+- Support GraphQL 17 (fixes #13). The `graphql` peer range is now `^16.0.0 || ^17.0.0`. CI runs the full suite against both majors. Node 20 is tested against GraphQL 16 only, since GraphQL 17 requires Node 22+.
+- **Fix**: named exports no longer carry the whole file's `loc` (fixes #14). Each export held only its own operation but inherited the document's `loc`, whose `source.body` is the entire file. Clients that send `loc.source.body` instead of printing, such as urql's `stringifyDocument`, therefore sent every operation in the file, so a single invalid operation broke every import from it. Every export now has a `loc` whose body is assembled from exactly its own definitions. The default export keeps the file's text unless definitions were merged in through `#import` or dropped as duplicates, in which case its body is rebuilt the same way: it used to spread fragments its own text never defined. `loc` is kept rather than dropped because graphql-tag's `gql` reads `loc.source.body` of every interpolated document, so `gql\`... ${UserFields}\`` keeps working.
+- **Fix**: `?raw`, `?url`, `?worker` and `?sharedworker` imports of `.graphql` files are left to Vite. The loader used to parse the JavaScript Vite had already produced for them as GraphQL and fail the build.
+- **Fix**: operations and fragments named with a JavaScript reserved word (`delete`, `new`, `class`...), a global the emitted module uses (`Set`, `Object`) or one of its own identifiers now load. Exports are aliased from `$`-prefixed locals, so only `default`, `_queries` and `_fragments` remain reserved.
+- **Fix**: `#import` lines are read past whitespace-only lines, when indented, and after a UTF-8 byte order mark. Each used to silently drop every import after it. A comment that merely starts with `# import` is no longer turned into a bogus ESM import, and an `#import` line that cannot be parsed fails the build instead of being ignored.
+- **Fix**: across `#import`ed files, a spread always resolves to a fragment, so an operation sharing a name with an imported fragment no longer loses it. Identical definitions reached through two paths are kept once. Two different definitions sharing a name fail at load time with a clear error rather than silently keeping the first. Input type names of variables are no longer mistaken for fragment references.
+- **Fix**: a file holding one fragment and an anonymous operation exports the fragment on its own rather than as the whole document.
+- **Fix**: CRLF line endings are preserved in `loc.source.body`, so `loc` offsets match it on Windows checkouts.
+- **Fix**: emitted `loc.start`/`loc.end` now match `loc.source.body`. Two bugs combined to make every offset wrong: the document was parsed through a tagged template literal, so this file's own indentation was counted into the document, and `graphql-tag` caches parsed documents keyed by whitespace-normalized source, so two `.graphql` files differing only in whitespace shared one `DocumentNode` and inherited each other's offsets.
 - **Fix**: anonymous operations now follow GraphQL's LoneAnonymousOperation rule. A file with an anonymous operation alongside any other operation fails the build instead of silently dropping it, and a file with an anonymous operation alongside two or more fragments is no longer rejected. Fragments were previously counted as operations when deciding whether a name was required.
 - Identical fragments within a file are deduplicated, preserving the previous `graphql-tag` behaviour. Formatting and comments do not affect equality. Conflicting fragments, duplicate operations, and operations sharing a fragment name fail the build with a clear error.
-- `magic-string` is updated to 1.x. `sourceMapOptions` passes straight through to it, so `hires` now also accepts `"boundary"` and `"experimental-range"` alongside `true` / `false`. Emitted code is unchanged.
-- The Vite and Bun loaders now share one implementation in this repository. `bun-graphql-loader` had drifted a long way behind and was missing the `${`/backslash escaping, `#import` path validation, prototype-safe fragment dedup and reserved-name fixes. Nothing changes for Vite users.
-- Emitted modules now name their injected helpers `graphqlLoaderUniqueChecker` / `graphqlLoaderExtractQuery` rather than `vitePluginGraphqlLoader*`, since the same code is emitted by both loaders. These identifiers are internal to the emitted module.
-
-**_v5.2.0_**:
-
-- Support GraphQL 17 (fixes #13). The `graphql` peer range is now `^16.0.0 || ^17.0.0`.
-- CI runs the full suite against both GraphQL majors. Node 20 is tested against GraphQL 16 only, since GraphQL 17 requires Node 22+.
-- **Fix**: emitted `loc.start`/`loc.end` now match `loc.source.body`. Two bugs combined to make every offset wrong: the document was parsed through a tagged template literal, so this file's own indentation was counted into the document, and `graphql-tag` caches parsed documents keyed by whitespace-normalized source, so two `.graphql` files differing only in whitespace shared one `DocumentNode` and inherited each other's offsets.
-- **Breaking (internal)**: `graphql-tag` is no longer a dependency. The loader parses with `parse` from the `graphql` peer, which has no document cache, and strips definition-level `loc` to keep the emitted document the same size as before. Emitted modules are unchanged apart from the corrected offsets.
+- `_fragments` is documented as `Record<string, DocumentNode>`. Its values were always documents holding the fragment, never `FragmentDefinitionNode`s.
+- **Breaking (internal)**: `graphql-tag` is no longer a dependency. The loader parses with `parse` from the `graphql` peer, which has no document cache. Nested `loc`s are still stripped to keep the emitted document small, and each top-level definition keeps its `{start, end}`.
+- `magic-string` is updated to 1.x. `sourceMapOptions` passes straight through to it, so `hires` now also accepts `"boundary"` and `"experimental-range"` alongside `true` / `false`.
+- The Vite and Bun loaders now share one implementation in this repository. `bun-graphql-loader` had drifted a long way behind and was missing the `${`/backslash escaping, `#import` path validation, prototype-safe fragment dedup and reserved-name fixes.
+- Emitted modules now name their injected helpers `graphqlLoaderUniqueChecker`, `graphqlLoaderExtractQuery` and `graphqlLoaderSourceLoc` rather than `vitePluginGraphqlLoader*`, since the same code is emitted by both loaders. These identifiers are internal to the emitted module.
 
 **_v5.1.1_**:
 
