@@ -1,0 +1,8 @@
+﻿#import "./fragment.gql"
+
+# Saved with a byte order mark, as Windows editors do.
+query GetUserBom($id: ID!) {
+    user(id: $id) {
+        ...UserFields
+    }
+}

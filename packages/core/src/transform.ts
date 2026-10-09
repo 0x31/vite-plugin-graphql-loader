@@ -38,6 +38,15 @@ const stripNestedLoc = (value: unknown): void => {
     }
 };
 
+// `#import "./a.gql"`, `#import './a.gql'`, `#import ./a.gql` and the
+// `#import { A } from "./a.gql"` form. Quotes allow spaces in the path.
+const IMPORT_LINE = /^#\s*import\s+(?:.+?\s+from\s+)?(?:"([^"]*)"|'([^']*)'|(\S+))\s*$/;
+
+// A comment meant as an import but not parseable as one: the path starts
+// with a quote or a dot, which prose such as `# import the fragment first`
+// does not. Failing loudly beats silently treating it as a comment.
+const IMPORT_ATTEMPT = /^#\s*import\s+(?:.+?\s+from\s+)?["'.]/;
+
 // Resolves GraphQL #import statements into ESM import statements.
 const expandImports = (source: string): { imports: string[]; importAppends: string[] } => {
     const lines = source.split(/\r\n|\r|\n/);
@@ -46,45 +55,43 @@ const expandImports = (source: string): { imports: string[]; importAppends: stri
     const imports: string[] = [];
     const importAppends: string[] = [];
 
-    // Go through each line, checking if it is an import. Uses `.some` instead
-    // of `.forEach` so it can return early after finding a non-export.
-    lines.some((line: string) => {
-        const result = line.match(/^#\s?import (?:.* from )?(.+)$/);
+    // Imports are read from the comment lines before the first definition.
+    // Uses `.some` instead of `.forEach` so it can stop at that definition.
+    lines.some((rawLine: string) => {
+        const line = rawLine.trim();
+        if (line === "") return false;
+        if (line[0] !== "#") return true;
 
-        // If it's an import, replace it with an ESM import.
-        if (result) {
-            let importFile = result[1].trim();
-
-            // Strip any surrounding quotes so we can re-quote safely below.
-            const quoted = importFile.match(/^"(.*)"$/) || importFile.match(/^'(.*)'$/);
-            if (quoted) {
-                importFile = quoted[1];
-            }
-
-            // Reject paths containing characters that would break the emitted
-            // ESM import statement.
-            if (/["'`\\\n\r]/.test(importFile)) {
+        const result = line.match(IMPORT_LINE);
+        if (!result) {
+            if (IMPORT_ATTEMPT.test(line)) {
                 throw new Error(
-                    `graphql-loader: invalid #import path ${JSON.stringify(importFile)}`,
+                    `graphql-loader: cannot parse #import line ${JSON.stringify(line)}`,
                 );
             }
+            return false;
+        }
+        const importFile = result[1] ?? result[2] ?? result[3];
 
-            // Generate name for the import based on the filepath.
-            let importName = "Import_" + importFile.replace(/[^a-z0-9]/gi, "_");
-            // Ensure import name is unique.
-            while (importNames.has(importName)) {
-                importName = importName + "_";
-            }
-            importNames.add(importName);
-
-            imports.push(`import ${importName} from ${JSON.stringify(importFile)};\n`);
-            importAppends.push(
-                `${DOC_NAME}.definitions = ${graphqlLoaderUniqueChecker.name}(${DOC_NAME}.definitions.concat(${importName}.definitions));\n`,
-            );
+        // Reject paths containing characters that would break the emitted
+        // ESM import statement.
+        if (/["'`\\\n\r]/.test(importFile)) {
+            throw new Error(`graphql-loader: invalid #import path ${JSON.stringify(importFile)}`);
         }
 
-        // Once we've reached a non-import line, return true to stop iterating.
-        return line.length !== 0 && line[0] !== "#";
+        // Generate name for the import based on the filepath.
+        let importName = "Import_" + importFile.replace(/[^a-z0-9]/gi, "_");
+        // Ensure import name is unique.
+        while (importNames.has(importName)) {
+            importName = importName + "_";
+        }
+        importNames.add(importName);
+
+        imports.push(`import ${importName} from ${JSON.stringify(importFile)};\n`);
+        importAppends.push(
+            `${DOC_NAME}.definitions = ${graphqlLoaderUniqueChecker.name}(${DOC_NAME}.definitions.concat(${importName}.definitions));\n`,
+        );
+        return false;
     });
 
     return { imports, importAppends };
@@ -116,6 +123,12 @@ export const transformGraphQL = (
     id: string,
     options?: GraphqlLoaderOptions,
 ): TransformResult => {
+    // A byte order mark would hide the `#` of a first-line import and shift
+    // every `loc` offset by one against the emitted body, so the text that
+    // is parsed, scanned and emitted starts after it.
+    const hasBom = source.charCodeAt(0) === 0xfeff;
+    const text = hasBom ? source.slice(1) : source;
+
     let documentNode: DocumentNode;
     try {
         // Parse via `graphql` rather than `graphql-tag`. `gql` caches
@@ -123,7 +136,7 @@ export const transformGraphQL = (
         // differing only in whitespace would share one DocumentNode and
         // inherit each other's `loc` offsets, which no longer match the
         // `loc.source.body` emitted alongside them.
-        documentNode = parse(source);
+        documentNode = parse(text);
     } catch (error) {
         throw new Error(
             `graphql-loader: failed to parse ${id}: ${error instanceof Error ? error.message : String(error)}`,
@@ -197,6 +210,7 @@ export const transformGraphQL = (
         .replaceAll("`", "\\`")
         .replaceAll("${", "\\${")
         .replaceAll("\r", "\\r");
+    if (hasBom) outputCode.remove(0, 1);
 
     outputCode.prepend(`const _gql_source = \``);
     // ORIGINAL SOURCE CODE ENDS UP BETWEEN THESE TWO LINES, AS A JS STRING.
@@ -232,7 +246,7 @@ export const transformGraphQL = (
     }
 
     // Resolve #import statements.
-    const { imports, importAppends } = expandImports(source);
+    const { imports, importAppends } = expandImports(text);
     const extractQueries =
         documentNode.definitions.filter(isNamedDefinition).length > 1 || imports.length > 0;
 

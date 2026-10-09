@@ -299,6 +299,64 @@ describe("unit: #import parsing and file matching", () => {
         expect(code).toContain(`from "./frag.gql"`);
     });
 
+    it("keeps scanning past a line that holds only whitespace", async () => {
+        // Trailing spaces on a blank line used to count as the first
+        // definition, silently dropping every import after it.
+        const code = await transformedCode(
+            `#import "./a.gql"\n   \n#import "./b.gql"\nquery Q { ...A ...B }`,
+            "tests/x.graphql",
+        );
+        expect(code).toContain(`from "./a.gql"`);
+        expect(code).toContain(`from "./b.gql"`);
+    });
+
+    it("reads an indented #import", async () => {
+        const code = await transformedCode(
+            `  #import "./a.gql"\nquery Q { ...A }`,
+            "tests/x.graphql",
+        );
+        expect(code).toContain(`from "./a.gql"`);
+    });
+
+    it.each([
+        "# import the user fragment before using it",
+        "# import this from the shared file",
+        "#import",
+    ])("treats %s as a comment rather than an import", async (comment) => {
+        const code = await transformedCode(`${comment}\nquery Q { a }`, "tests/x.graphql");
+        expect(code).not.toMatch(/^import /m);
+    });
+
+    it("accepts a quoted path containing spaces", async () => {
+        const code = await transformedCode(
+            `#import "./my fragments.gql"\nquery Q { ...A }`,
+            "tests/x.graphql",
+        );
+        expect(code).toContain(`from "./my fragments.gql"`);
+    });
+
+    it.each([`#import "./a.gql" # the user fragment`, `#import "./a.gql" "./b.gql"`])(
+        "rejects %s, an import it cannot parse, instead of ignoring it",
+        async (line) => {
+            await expect(
+                callTransform(`${line}\nquery Q { ...A }`, "tests/x.graphql"),
+            ).rejects.toThrow(/cannot parse #import line/);
+        },
+    );
+
+    it("strips a byte order mark before scanning and parsing", async () => {
+        // The BOM used to hide the `#` of a first-line import, so every
+        // import in the file was silently dropped. Bun strips it on read,
+        // Vite does not.
+        const source = `\uFEFF#import "./a.gql"\nquery Q { ...A }\n`;
+        const code = await transformedCode(source, "tests/x.graphql");
+        expect(code).toContain(`from "./a.gql"`);
+        expect(code).not.toContain("\uFEFF");
+        expect(code).toMatch(
+            new RegExp(`"loc":\\{"start":0,"end":${source.length - 1}\\}\\};$`, "m"),
+        );
+    });
+
     it("gives each repeated #import path a distinct identifier", async () => {
         const code = await transformedCode(
             `#import "./frag.gql"\n#import "./frag.gql"\nquery Q { ...Frag }`,

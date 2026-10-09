@@ -27,6 +27,8 @@ import {
     Object as objectDoc,
     _queries as reservedQueries,
 } from "./graphql/reserved.gql";
+// 10. A file starting with a byte order mark still has its #import read
+import bomDoc from "./graphql/bom.gql";
 
 function assert(condition: boolean, message: string): asserts condition {
     if (!condition) throw new Error("FAIL: " + message);
@@ -109,7 +111,15 @@ assert(
     "reserved: query Object should carry fragment Set",
 );
 
-// --- 10. Round-trip through graphql's print() to verify spec-compliant DocumentNodes ---
+// --- 10. Byte order mark ---
+assertDocument(bomDoc, "bom");
+assert(
+    bomDoc.definitions.some((d) => "name" in d && d.name?.value === "UserFields"),
+    "bom: #import after a byte order mark should still be resolved",
+);
+assert(!bomDoc.loc!.source.body.startsWith("\uFEFF"), "bom: body should not keep the mark");
+
+// --- 11. Round-trip through graphql's print() to verify spec-compliant DocumentNodes ---
 const printedBasic = print(basicDoc);
 assert(printedBasic.includes("users"), "print(basic): should contain 'users' field");
 
