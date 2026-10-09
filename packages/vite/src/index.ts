@@ -8,6 +8,12 @@ import {
 
 export type { GraphqlLoaderOptions };
 
+// Vite serves these itself: by the time `transform` runs, `vite:asset` has
+// already turned `schema.graphql?raw` into `export default "..."`, which is
+// JavaScript, not GraphQL. Every other query, including the `?import` Vite
+// appends to non-JS ids in SSR, still reaches the loader.
+const VITE_SPECIAL_QUERY_REGEX = /[?&](?:worker|sharedworker|raw|url)\b/;
+
 /** Vite GraphQL Loader. */
 export const vitePluginGraphqlLoader = (options?: GraphqlLoaderOptions): Plugin => {
     return {
@@ -18,7 +24,7 @@ export const vitePluginGraphqlLoader = (options?: GraphqlLoaderOptions): Plugin 
 
         transform(source: string, id: string) {
             // Only transform GraphQL files (.gql or .graphql).
-            if (!GRAPHQL_FILE_REGEX.test(id)) {
+            if (!GRAPHQL_FILE_REGEX.test(id) || VITE_SPECIAL_QUERY_REGEX.test(id)) {
                 return;
             }
 

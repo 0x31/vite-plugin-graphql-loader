@@ -17,6 +17,9 @@ import importUnquotedDoc from "./graphql/import-unquoted.gql";
 import importNamedDoc from "./graphql/import-named.gql";
 // 7. Backtick escaping in query strings
 import backtickDoc from "./graphql/backtick.graphql";
+// 8. Vite's own ?raw and ?url handling has to win over the loader
+import rawSource from "./graphql/basic.gql?raw";
+import fileUrl from "./graphql/basic.gql?url";
 
 function assert(condition: boolean, message: string): asserts condition {
     if (!condition) throw new Error("FAIL: " + message);
@@ -84,7 +87,12 @@ assert(
     "backtick: source body should preserve backticks",
 );
 
-// --- 8. Round-trip through graphql's print() to verify spec-compliant DocumentNodes ---
+// --- 8. ?raw and ?url imports stay strings ---
+assert(typeof rawSource === "string", "?raw: should be the file's text");
+assert(rawSource.includes("users"), "?raw: should contain the query text");
+assert(typeof fileUrl === "string", "?url: should be a URL string");
+
+// --- 9. Round-trip through graphql's print() to verify spec-compliant DocumentNodes ---
 const printedBasic = print(basicDoc);
 assert(printedBasic.includes("users"), "print(basic): should contain 'users' field");
 
