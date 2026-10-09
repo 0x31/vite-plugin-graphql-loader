@@ -94,6 +94,6 @@ const $TestQuery = graphqlLoaderExtractQuery(_gql_doc, "TestQuery");
 export { $TestQuery as TestQuery };
 const $TestQuery2 = graphqlLoaderExtractQuery(_gql_doc, "TestQuery2");
 export { $TestQuery2 as TestQuery2 };
-export const _queries = {"TestQuery": $TestQuery, "TestQuery2": $TestQuery2};
-export const _fragments = {"TestFragment": $TestFragment};
+export const _queries = {["TestQuery"]: $TestQuery, ["TestQuery2"]: $TestQuery2};
+export const _fragments = {["TestFragment"]: $TestFragment};
 export default _gql_doc;

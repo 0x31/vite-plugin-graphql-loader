@@ -677,6 +677,15 @@ describe("regression: GraphQL names that are not valid JavaScript bindings", () 
         expect(code).toContain("export { $Import___frag_gql as Import___frag_gql };");
     });
 
+    it("keeps a definition named __proto__ as an own registry entry", async () => {
+        // A literal `"__proto__": x` entry sets the prototype instead, so the
+        // registries use computed keys.
+        const mod = await loadModule(`query __proto__ { a }\nquery Other { b }`);
+        expect(Object.keys(mod._queries)).toEqual(["__proto__", "Other"]);
+        expect(Object.getPrototypeOf(mod._queries)).toBe(Object.prototype);
+        expect(mod._queries["__proto__"].definitions[0].name.value).toBe("__proto__");
+    });
+
     it("keeps a single definition aliased to the document itself", async () => {
         const mod = await loadModule(`query delete { a }`);
         expect(mod.delete).toBe(mod.default);

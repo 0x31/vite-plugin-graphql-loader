@@ -309,8 +309,10 @@ export const transformGraphQL = (
         }
         outputCode.append(`export { ${local} as ${name} };\n`);
 
+        // Computed keys: a plain `"__proto__": x` entry would set the object's
+        // prototype instead of adding a property.
         (def.kind === "OperationDefinition" ? queries : fragments).push(
-            `${JSON.stringify(name)}: ${local}`,
+            `[${JSON.stringify(name)}]: ${local}`,
         );
     }
 

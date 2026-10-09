@@ -8,5 +8,5 @@ _gql_doc.loc.source.body = _gql_source;
 _gql_doc.definitions.forEach((def) => Object.defineProperty(def.loc, "source", { value: _gql_doc.loc.source }));
 export { _gql_doc as TestFragment };
 export const _queries = {};
-export const _fragments = {"TestFragment": _gql_doc};
+export const _fragments = {["TestFragment"]: _gql_doc};
 export default _gql_doc;

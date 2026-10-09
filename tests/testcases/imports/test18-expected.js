@@ -114,6 +114,6 @@ const graphqlLoaderExtractQuery = (doc, operationName) => {
 };
 const $ImportingQuery = graphqlLoaderExtractQuery(_gql_doc, "ImportingQuery");
 export { $ImportingQuery as ImportingQuery };
-export const _queries = {"ImportingQuery": $ImportingQuery};
+export const _queries = {["ImportingQuery"]: $ImportingQuery};
 export const _fragments = {};
 export default _gql_doc;
