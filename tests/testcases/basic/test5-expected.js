@@ -40,86 +40,39 @@ const graphqlLoaderSourceLoc = (definitions) => {
 	};
 };
 const graphqlLoaderExtractQuery = (doc, operationName) => {
-	// Recursively navigate node tree to find references to fragments.
+	// Names of the fragments a node spreads, including inside nested selections.
 	const collectFragmentReferences = (node, refs) => {
 		if (node.kind === "FragmentSpread") {
 			refs.add(node.name.value);
-		} else if (node.kind === "VariableDefinition") {
-			const type = node.type;
-			if (type.kind === "NamedType") {
-				refs.add(type.name.value);
-			}
 		};
-		if (node && "selectionSet" in node && node.selectionSet) {
+		if ("selectionSet" in node && node.selectionSet) {
 			node.selectionSet.selections.forEach((selection) => {
 				collectFragmentReferences(selection, refs);
 			});
 		};
-		if (node && "variableDefinitions" in node && node.variableDefinitions) {
-			node.variableDefinitions.forEach((def) => {
-				collectFragmentReferences(def, refs);
-			});
-		};
-		if (node && "definitions" in node && node.definitions) {
-			node.definitions.forEach((def) => {
-				collectFragmentReferences(def, refs);
-			});
-		};
 		return refs;
 	};
-	const extractReferences = (doc) => {
-		// `Object.create(null)` so a definition named `constructor` or
-		// `toString` doesn't collide with Object.prototype properties.
-		const definitionRefs = Object.create(null);
-		// Extract references.
-		doc.definitions.forEach(function(def) {
-			if ("name" in def && def.name) {
-				definitionRefs[def.name.value] = collectFragmentReferences(def, new Set());
-			}
-		});
-		return definitionRefs;
-	};
-	const findOperation = (doc, name) => {
-		for (let i = 0; i < doc.definitions.length; i++) {
-			const element = doc.definitions[i];
-			if (element && "name" in element && element.name && element.name.value === name) {
-				return element;
-			}
-		}
-	};
-	const definitionRefs = extractReferences(doc);
-	const rootOperation = findOperation(doc, operationName);
+	// A spread only ever names a fragment, so an #imported fragment named like
+	// a local operation neither shadows it nor is shadowed by it.
+	const findFragment = (name) => doc.definitions.find((def) => def.kind === "FragmentDefinition" && def.name.value === name);
+	const rootOperation = doc.definitions.find((def) => (def.kind === "OperationDefinition" || def.kind === "FragmentDefinition") && def.name !== undefined && def.name.value === operationName);
 	if (!rootOperation) {
 		throw new Error(`graphql-loader: operation "${operationName}" not found in document`);
 	};
 	const definitions = [rootOperation];
-	// Now, for the operation we're running, find any fragments referenced by
-	// it or the fragments it references.
-	const opRefs = definitionRefs[operationName] || new Set();
-	const allRefs = new Set();
-	let newRefs = new Set();
-	opRefs.forEach((refName) => {
-		newRefs.add(refName);
-	});
-	while (newRefs.size > 0) {
-		const prevRefs = newRefs;
-		newRefs = new Set();
-		prevRefs.forEach((refName) => {
-			if (!allRefs.has(refName)) {
-				allRefs.add(refName);
-				const childRefs = definitionRefs[refName] || new Set();
-				childRefs.forEach((childRef) => {
-					newRefs.add(childRef);
-				});
-			}
-		});
+	const included = new Set();
+	const pending = [...collectFragmentReferences(rootOperation, new Set())];
+	for (let i = 0; i < pending.length; i++) {
+		const name = pending[i];
+		if (included.has(name)) continue;
+		included.add(name);
+		// A spread of a fragment the document doesn't define is left for
+		// validation to report.
+		const fragment = findFragment(name);
+		if (!fragment) continue;
+		definitions.push(fragment);
+		pending.push(...collectFragmentReferences(fragment, new Set()));
 	};
-	allRefs.forEach((refName) => {
-		const op = findOperation(doc, refName);
-		if (op) {
-			definitions.push(op);
-		}
-	});
 	// The file's `loc` describes every definition in the file, so the new
 	// document gets one describing only its own. Clients that send
 	// `loc.source.body` rather than printing (urql, graphql-tag's `gql`)

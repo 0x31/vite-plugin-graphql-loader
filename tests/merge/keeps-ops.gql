@@ -1,0 +1,7 @@
+#import "./ops.gql"
+
+query Q {
+    t {
+        ...F
+    }
+}

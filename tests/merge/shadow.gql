@@ -1,0 +1,12 @@
+#import "./user.gql"
+
+# The operation and the imported fragment share a name, which GraphQL allows.
+query User {
+    user {
+        ...User
+    }
+}
+
+query Other {
+    x
+}

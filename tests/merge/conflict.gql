@@ -1,0 +1,8 @@
+#import "./conflict-a.gql"
+#import "./conflict-b.gql"
+
+query Q {
+    t {
+        ...F
+    }
+}

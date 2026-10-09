@@ -13,7 +13,7 @@ import {
     graphqlLoaderExtractQuery,
     graphqlLoaderUniqueChecker,
 } from "../packages/core/src/snippets.js";
-import type { DefinitionNode } from "graphql";
+import type { DefinitionNode, DocumentNode } from "graphql";
 
 const plugin = vitePluginGraphqlLoader();
 
@@ -728,6 +728,40 @@ describe("regression: v5.1.1 fixes", () => {
         const result = graphqlLoaderUniqueChecker(defs);
         const names = result.map((d) => ("name" in d ? d.name?.value : null));
         expect(names).toEqual(["Foo", "Bar"]);
+    });
+
+    it("extractQuery only treats fragment spreads as references, not variable types", () => {
+        // Inherited from graphql-tag's loader, which also collected the named
+        // type of each variable. A fragment or operation sharing a name with
+        // an input type was then pulled into documents that never spread it.
+        const doc = parseGraphql(`
+            fragment Filter on T { a }
+            query A($f: Filter) { b(f: $f) }
+            query Filter($f: Filter) { c }
+            query R { ...Filter }
+        `);
+        const names = (out: DocumentNode) =>
+            out.definitions.map((d) => ("name" in d && d.name ? d.name.value : null));
+        expect(names(graphqlLoaderExtractQuery(doc, "A"))).toEqual(["A"]);
+        expect(names(graphqlLoaderExtractQuery(doc, "Filter"))).toEqual(["Filter"]);
+        expect(names(graphqlLoaderExtractQuery(doc, "R"))).toEqual(["R", "Filter"]);
+        expect(graphqlLoaderExtractQuery(doc, "R").definitions[1]!.kind).toBe("FragmentDefinition");
+    });
+
+    it("unique-checker throws for two different definitions with one name", () => {
+        const defs = [
+            { kind: "FragmentDefinition", name: { kind: "Name", value: "F" }, selection: "a" },
+            { kind: "FragmentDefinition", name: { kind: "Name", value: "F" }, selection: "b" },
+        ] as unknown as DefinitionNode[];
+        expect(() => graphqlLoaderUniqueChecker(defs)).toThrow(/"F" is defined differently/);
+    });
+
+    it("unique-checker ignores loc, which only says which file a copy came from", () => {
+        const defs = [
+            { kind: "FragmentDefinition", name: { kind: "Name", value: "F" }, loc: { start: 0 } },
+            { kind: "FragmentDefinition", name: { kind: "Name", value: "F" }, loc: { start: 9 } },
+        ] as unknown as DefinitionNode[];
+        expect(graphqlLoaderUniqueChecker(defs)).toHaveLength(1);
     });
 
     it("extractQuery handles operations/fragments named 'constructor'", () => {

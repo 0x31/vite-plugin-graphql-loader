@@ -1,0 +1,8 @@
+#import "./same-a.gql"
+#import "./same-b.gql"
+
+query Q {
+    t {
+        ...F
+    }
+}

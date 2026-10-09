@@ -1,0 +1,7 @@
+fragment F on T {
+    a
+}
+
+query ListB {
+    x
+}
