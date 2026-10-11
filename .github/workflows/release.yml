@@ -3,7 +3,7 @@ name: Release
 on:
     push:
         tags:
-            # One package per tag: `vite-v5.3.0` publishes packages/vite,
+            # One package per tag: `vite-v6.0.0` publishes packages/vite,
             # `bun-v2.0.0` publishes packages/bun.
             - "vite-v*"
             - "bun-v*"

@@ -37,6 +37,6 @@ re-run the tests twice to regenerate it.
 
 ## Releasing
 
-Tags select the package: `vite-v5.3.0` publishes `packages/vite`,
+Tags select the package: `vite-v6.0.0` publishes `packages/vite`,
 `bun-v2.0.0` publishes `packages/bun`. Both use npm Trusted Publishing, which
 has to be configured per package on npmjs.com.
