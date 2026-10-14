@@ -7,11 +7,6 @@ Loads GraphQL `.gql` and `.graphql` files as ES modules, for Vite and for Bun.
 | [`vite-plugin-graphql-loader`](./packages/vite#readme) | [npm](https://www.npmjs.com/package/vite-plugin-graphql-loader) | Vite 5, 6, 7, 8         |
 | [`bun-graphql-loader`](./packages/bun#readme)          | [npm](https://www.npmjs.com/package/bun-graphql-loader)         | `bun build`, `bun test` |
 
-Both packages wrap one shared transform in `packages/core`. They previously
-lived in separate repositories and drifted, with the Bun copy missing several
-correctness and security fixes. Core is compiled into each published package
-rather than published on its own, so neither package gains a dependency.
-
 ## Layout
 
 ```
@@ -38,5 +33,5 @@ re-run the tests twice to regenerate it.
 ## Releasing
 
 Tags select the package: `vite-v6.0.0` publishes `packages/vite`,
-`bun-v2.0.0` publishes `packages/bun`. Both use npm Trusted Publishing, which
-has to be configured per package on npmjs.com.
+`bun-v2.0.0` publishes `packages/bun`. Both are setup to use npm Trusted
+Publishing.
